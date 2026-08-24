@@ -16,12 +16,13 @@ seconds_until_4am() {
   fi
 }
 
-echo "backup: rclone remotes"
-rclone lsd gdrive: || echo "backup: gdrive: not reachable yet" >&2
+echo "backup: $(date -Iseconds) sidecar up, TZ=${TZ:-unset}"
 
-/scripts/backup.sh || echo "backup: run failed" >&2
+sh /scripts/backup.sh || echo "backup: $(date -Iseconds) run failed" >&2
 
 while true; do
-  sleep "$(seconds_until_4am)"
-  /scripts/backup.sh || echo "backup: run failed" >&2
+  wait=$(seconds_until_4am)
+  echo "backup: $(date -Iseconds) next run in ${wait}s"
+  sleep "$wait"
+  sh /scripts/backup.sh || echo "backup: $(date -Iseconds) run failed" >&2
 done

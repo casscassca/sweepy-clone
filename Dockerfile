@@ -24,6 +24,7 @@ RUN npm run build
 FROM alpine:3.21 AS backup
 RUN apk add --no-cache rclone postgresql-client tzdata
 COPY scripts/backup.sh scripts/backup-entrypoint.sh /scripts/
+RUN chmod +x /scripts/backup.sh /scripts/backup-entrypoint.sh
 CMD ["sh", "/scripts/backup-entrypoint.sh"]
 
 FROM base AS runner

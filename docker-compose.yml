@@ -35,8 +35,6 @@ services:
       PGSSLMODE: require
     volumes:
       - ${HOME}/.config/rclone:/root/.config/rclone
-      - ./scripts/backup.sh:/scripts/backup.sh:ro
-      - ./scripts/backup-entrypoint.sh:/scripts/backup-entrypoint.sh:ro
     restart: unless-stopped
 
 volumes:
