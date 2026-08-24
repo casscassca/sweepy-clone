@@ -28,7 +28,7 @@ function SortableItem({ assignment, users, meId, onComplete, onUncomplete, onRem
   onUncomplete: (id: string) => void;
   onRemove: (id: string) => void;
   onPin: (id: string, pinned: boolean) => void;
-  onReassign: (id: string, userId: string) => void;
+  onReassign: (id: string, userId: string, date: string) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: assignment.id });
   const [showWho, setShowWho] = useState(false);
@@ -76,8 +76,8 @@ function SortableItem({ assignment, users, meId, onComplete, onUncomplete, onRem
             onClick={() => { setShowWho(false); setShowAssign((v) => !v); }}
             className="p-2 rounded-lg opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
             style={{ color: "var(--text3)" }}
-            title="Give to someone else"
-            aria-label="Give to someone else"
+            title="Give to someone else or another day"
+            aria-label="Give to someone else or another day"
           >
             <Users size={16} />
           </button>
@@ -121,7 +121,7 @@ function SortableItem({ assignment, users, meId, onComplete, onUncomplete, onRem
           title="Give to"
           users={users}
           selectedId={assignment.userId}
-          onPick={(id) => onReassign(assignment.id, id)}
+          onPick={(id, date) => onReassign(assignment.id, id, date)}
           onClose={() => setShowAssign(false)}
         />
       )}
@@ -200,15 +200,21 @@ export default function TodayPage() {
     if (!res.ok) load();
   }
 
-  async function reassign(assignmentId: string, userId: string) {
+  async function reassign(assignmentId: string, userId: string, date: string) {
     const user = users.find((u) => u.id === userId);
     if (!user) return;
-    setAssignments((prev) => prev.map((a) => (a.id === assignmentId ? { ...a, userId, user } : a)));
+    const today = format(new Date(), "yyyy-MM-dd");
+    setAssignments((prev) =>
+      date !== today
+        ? prev.filter((a) => a.id !== assignmentId)
+        : prev.map((a) => (a.id === assignmentId ? { ...a, userId, user } : a))
+    );
     await fetch(`/api/assignments/${assignmentId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId }),
+      body: JSON.stringify({ userId, date }),
     });
+    invalidateLists();
   }
 
   async function pin(assignmentId: string, pinned: boolean) {

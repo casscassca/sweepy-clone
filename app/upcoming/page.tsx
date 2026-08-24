@@ -41,7 +41,7 @@ function TaskCard({ assignment, users, meId, onComplete, onUncomplete, onRemove,
   onUncomplete?: (id: string) => void;
   onRemove?: (id: string) => void;
   onEdit?: (task: Task) => void;
-  onReassign?: (id: string, userId: string) => void;
+  onReassign?: (id: string, userId: string, date: string) => void;
   onPin?: (id: string, pinned: boolean) => void;
   dragHandleProps?: HTMLAttributes<HTMLElement>;
   isDragOverlay?: boolean;
@@ -90,8 +90,8 @@ function TaskCard({ assignment, users, meId, onComplete, onUncomplete, onRemove,
               onClick={(e) => { e.stopPropagation(); setShowWho(false); setShowAssign((v) => !v); }}
               className="flex items-center gap-1.5 min-h-8 -ml-1 px-1 rounded-lg"
               style={{ color: "var(--text3)" }}
-              title="Give to someone else — does not mark done"
-              aria-label={`Assigned to ${assignment.user.name}. Give to someone else`}
+              title="Give to someone else or another day"
+              aria-label={`Assigned to ${assignment.user.name}. Give to someone else or another day`}
             >
               <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: assignment.user.color }} />
               <span className="text-xs">{assignment.user.name}</span>
@@ -173,7 +173,8 @@ function TaskCard({ assignment, users, meId, onComplete, onUncomplete, onRemove,
           title="Give to"
           users={users}
           selectedId={assignment.userId}
-          onPick={(id) => onReassign(assignment.id, id)}
+          defaultDate={assignment.date}
+          onPick={(id, date) => onReassign(assignment.id, id, date)}
           onClose={() => setShowAssign(false)}
         />
       )}
@@ -293,15 +294,20 @@ export default function UpcomingPage() {
     });
   }
 
-  async function reassign(assignmentId: string, userId: string) {
+  async function reassign(assignmentId: string, userId: string, date: string) {
     const user = users.find((u) => u.id === userId);
     if (!user) return;
-    setAssignments((prev) => prev.map((a) => (a.id === assignmentId ? { ...a, userId, user } : a)));
+    setAssignments((prev) =>
+      days.includes(date)
+        ? prev.map((a) => (a.id === assignmentId ? { ...a, userId, user, date } : a))
+        : prev.filter((a) => a.id !== assignmentId)
+    );
     await fetch(`/api/assignments/${assignmentId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId }),
+      body: JSON.stringify({ userId, date }),
     });
+    invalidateLists();
   }
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
