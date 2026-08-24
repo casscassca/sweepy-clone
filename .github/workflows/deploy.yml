@@ -78,6 +78,6 @@ jobs:
           set -euo pipefail
           git pull --ff-only
           docker compose --profile backup pull
-          docker compose --profile backup up -d --force-recreate backup
+          docker compose --profile backup up -d
           docker image prune -f
           docker ps --filter name=sweepy --format 'table {{.Names}}\t{{.Image}}\t{{.Status}}'
