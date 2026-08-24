@@ -230,7 +230,7 @@ function FilterChip({
 
 export default function UpcomingPage() {
   const days = useMemo(
-    () => Array.from({ length: 7 }, (_, i) => format(addDays(new Date(), i), "yyyy-MM-dd")),
+    () => Array.from({ length: 21 }, (_, i) => format(addDays(new Date(), i), "yyyy-MM-dd")),
     [],
   );
   const [assignments, setAssignments] = useState<Assignment[]>([]);
@@ -351,7 +351,7 @@ export default function UpcomingPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Upcoming</h1>
           <p className="text-sm mt-1" style={{ color: "var(--text2)" }}>
-            Next 7 days · {byWho.length} tasks · {totalDone} done
+            Next 3 weeks · {byWho.length} tasks · {totalDone} done
           </p>
         </div>
         <button onClick={load} disabled={loading} className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text2)", boxShadow: "var(--shadow)" }}>
