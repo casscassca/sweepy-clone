@@ -103,10 +103,19 @@ export function completedTriggerId(taskId: string) {
   return `sweepy_task_${taskId}_completed`;
 }
 
-export type HaMqttInventory = { tasks: string[]; rooms: string[]; extras: string[] };
+export type HaMqttInventory = {
+  tasks: string[];
+  rooms: string[];
+  extras: string[];
+  homes: Record<string, string>;
+};
+
+function emptyInventory(): HaMqttInventory {
+  return { tasks: [], rooms: [], extras: [], homes: {} };
+}
 
 export function parseInventory(raw: unknown): HaMqttInventory {
-  if (!raw || typeof raw !== "object") return { tasks: [], rooms: [], extras: [] };
+  if (!raw || typeof raw !== "object") return emptyInventory();
   const tasks = "tasks" in raw && Array.isArray(raw.tasks)
     ? raw.tasks.filter((id): id is string => typeof id === "string")
     : [];
@@ -116,12 +125,22 @@ export function parseInventory(raw: unknown): HaMqttInventory {
   const extras = "extras" in raw && Array.isArray(raw.extras)
     ? raw.extras.filter((id): id is string => typeof id === "string")
     : [];
-  return { tasks, rooms, extras };
+  const homes: Record<string, string> = {};
+  if ("homes" in raw && raw.homes && typeof raw.homes === "object" && !Array.isArray(raw.homes)) {
+    for (const [id, roomId] of Object.entries(raw.homes)) {
+      if (typeof roomId === "string") homes[id] = roomId;
+    }
+  }
+  return { tasks, rooms, extras, homes };
 }
 
 export function idsToRemove(previous: string[], current: string[]) {
   const keep = new Set(current);
   return previous.filter((id) => !keep.has(id));
+}
+
+export function tasksThatMoved(previous: Record<string, string>, current: Record<string, string>) {
+  return Object.keys(current).filter((id) => previous[id] && previous[id] !== current[id]);
 }
 
 function roomDevice(roomId: string | null, roomName: string | null): DeviceInfo {
@@ -418,6 +437,7 @@ export function buildPublishPlan(opts: {
   const taskIds: string[] = [];
   const roomIds: string[] = [];
   const extras: string[] = [];
+  const homes: Record<string, string> = {};
 
   function pushDiscovery(component: string, objectId: string, body: object) {
     messages.push({
@@ -429,6 +449,7 @@ export function buildPublishPlan(opts: {
 
   function publishTask(task: HaMqttTask) {
     taskIds.push(task.id);
+    homes[task.id] = task.roomId || UNASSIGNED_ROOM_ID;
     const stateTopic = `${topics.base}/task/${task.id}/state`;
     const lastDoneId = lastDoneObjectId(task.id);
     extras.push(lastDoneId);
@@ -538,9 +559,9 @@ export function buildPublishPlan(opts: {
 
   messages.push({
     topic: `${topics.base}/inventory`,
-    payload: JSON.stringify({ tasks: taskIds, rooms: roomIds, extras }),
+    payload: JSON.stringify({ tasks: taskIds, rooms: roomIds, extras, homes }),
     retain: true,
   });
 
-  return { messages, inventory: { tasks: taskIds, rooms: roomIds, extras } };
+  return { messages, inventory: { tasks: taskIds, rooms: roomIds, extras, homes } };
 }

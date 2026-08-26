@@ -6,6 +6,7 @@ import {
   idsToRemove,
   parseInventory,
   tombstoneTopics,
+  tasksThatMoved,
   type HaMqttAssignment,
   type HaMqttInventory,
   type HaMqttTask,
@@ -62,7 +63,7 @@ let started = false;
 let client: MqttClient | null = null;
 let syncTimer: ReturnType<typeof setTimeout> | null = null;
 let syncLock: Promise<void> = Promise.resolve();
-let lastInventory: HaMqttInventory = { tasks: [], rooms: [], extras: [] };
+let lastInventory: HaMqttInventory = { tasks: [], rooms: [], extras: [], homes: {} };
 let inventoryHydrated = false;
 
 export function haMqttStatus() {
@@ -128,7 +129,7 @@ function readRetainedInventory(sock: MqttClient, cfg: MqttConn) {
   return new Promise<HaMqttInventory>((resolve) => {
     const timer = setTimeout(() => {
       sock.removeListener("message", onMessage);
-      resolve({ tasks: [], rooms: [], extras: [] });
+      resolve({ tasks: [], rooms: [], extras: [], homes: {} });
     }, 1500);
     const onMessage = (t: string, payload: Buffer) => {
       if (t !== topic) return;
@@ -265,9 +266,13 @@ async function publishInventory(cfg: MqttConn) {
     topics: cfg.topics,
   });
 
+  const gone = idsToRemove(lastInventory.tasks, inventory.tasks);
+  const moved = Object.keys(lastInventory.homes).length === 0
+    ? inventory.tasks
+    : tasksThatMoved(lastInventory.homes, inventory.homes);
   for (const topic of tombstoneTopics(
     cfg.topics,
-    idsToRemove(lastInventory.tasks, inventory.tasks),
+    [...new Set([...gone, ...moved])],
     idsToRemove(lastInventory.rooms, inventory.rooms),
     idsToRemove(lastInventory.extras, inventory.extras),
   )) {

@@ -9,6 +9,7 @@ import {
   roomObjectId,
   taskObjectId,
   taskState,
+  tasksThatMoved,
   tombstoneTopics,
 } from "./ha-mqtt-payload";
 
@@ -78,6 +79,7 @@ describe("ha mqtt payloads", () => {
     assert.ok(topicsOut.includes("homeassistant/device_automation/sweepy_task_task1_completed/config"));
     assert.deepEqual(inventory.tasks, ["task1"]);
     assert.deepEqual(inventory.rooms, ["room1"]);
+    assert.deepEqual(inventory.homes, { task1: "room1" });
     assert.ok(inventory.extras.includes(lastDoneObjectId("task1")));
 
     const roomStateMsg = messages.find((m) => m.topic === "sweepy/room/room1/state");
@@ -145,8 +147,20 @@ describe("ha mqtt payloads", () => {
     assert.ok(topicsOut.includes("homeassistant/sensor/sweepy_room_oldroom/config"));
   });
 
+  it("detects a chore that changed rooms", () => {
+    assert.deepEqual(tasksThatMoved({ task1: "kitchen" }, { task1: "bath" }), ["task1"]);
+    assert.deepEqual(tasksThatMoved({}, { task1: "kitchen" }), []);
+    assert.deepEqual(tasksThatMoved({ task1: "kitchen" }, { task1: "kitchen" }), []);
+  });
+
   it("reads a retained inventory payload", () => {
-    assert.deepEqual(parseInventory({ tasks: ["t1"], rooms: ["r1"] }), { tasks: ["t1"], rooms: ["r1"], extras: [] });
-    assert.deepEqual(parseInventory("nope"), { tasks: [], rooms: [], extras: [] });
+    assert.deepEqual(parseInventory({ tasks: ["t1"], rooms: ["r1"] }), { tasks: ["t1"], rooms: ["r1"], extras: [], homes: {} });
+    assert.deepEqual(parseInventory({ tasks: ["t1"], rooms: ["r1"], homes: { t1: "r1" } }), {
+      tasks: ["t1"],
+      rooms: ["r1"],
+      extras: [],
+      homes: { t1: "r1" },
+    });
+    assert.deepEqual(parseInventory("nope"), { tasks: [], rooms: [], extras: [], homes: {} });
   });
 });
