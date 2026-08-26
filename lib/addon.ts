@@ -101,8 +101,8 @@ export function assignmentLabel(task: AddonFields, completedAt?: Date | string |
 
 function extraPoints(task: AddonFields, includeSecond: boolean) {
   let extra = 0;
-  if (hasAddon(task)) extra += Math.max(1, task.addonPoints ?? 1);
-  if (includeSecond && hasAddon2(task)) extra += Math.max(1, task.addon2Points ?? 1);
+  if (hasAddon(task)) extra += Math.max(0, task.addonPoints ?? 1);
+  if (includeSecond && hasAddon2(task)) extra += Math.max(0, task.addon2Points ?? 1);
   return extra;
 }
 
@@ -133,6 +133,13 @@ export function addonDetail(task: AddonFields) {
   return `${first} · also ${addon2Label(task)} · ${formatFrequency(task.addon2FrequencyDays ?? 0).toLowerCase()}`;
 }
 
+function parsePoints(raw: unknown) {
+  if (raw === undefined || raw === null || raw === "") return 1;
+  const n = Math.round(Number(raw));
+  if (!Number.isFinite(n)) return 1;
+  return Math.min(2, Math.max(0, n));
+}
+
 function parseLayer(nameRaw: unknown, frequencyRaw: unknown, pointsRaw: unknown, lastRaw: unknown) {
   const name = typeof nameRaw === "string" ? nameRaw.trim().slice(0, 80) : "";
   const frequencyDays = name ? Math.max(0, Math.round(Number(frequencyRaw) || 0)) : 0;
@@ -142,7 +149,7 @@ function parseLayer(nameRaw: unknown, frequencyRaw: unknown, pointsRaw: unknown,
     on,
     name: on ? name : "",
     frequencyDays: on ? frequencyDays : 0,
-    points: on ? Math.min(2, Math.max(1, Math.round(Number(pointsRaw) || 1))) : 1,
+    points: on ? parsePoints(pointsRaw) : 1,
     lastDoneAt,
   };
 }

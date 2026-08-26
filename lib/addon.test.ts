@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { addonFields, displayTaskName, isAddon2Due, isAddonDue, isCatchUpTask, isDueToday, isTaskEligible } from "./addon";
+import { addonFields, displayTaskDifficulty, displayTaskName, isAddon2Due, isAddonDue, isCatchUpTask, isDueToday, isTaskEligible } from "./addon";
 
 const asOf = new Date("2026-08-19T12:00:00-05:00");
 
@@ -61,5 +61,12 @@ describe("nested add-on", () => {
     const parsed = addonFields({ addonName: "", addon2Name: "replace filter", addon2FrequencyDays: 30 });
     assert.equal(parsed.addon2Name, "");
     assert.equal(parsed.addon2FrequencyDays, 0);
+  });
+
+  it("lets an add-on be worth zero points", () => {
+    const parsed = addonFields({ addonName: "clean filter", addonFrequencyDays: 6, addonPoints: 0 });
+    assert.equal(parsed.addonPoints, 0);
+    const zeroExtra = { ...food, addonPoints: 0, addon2Name: "", addon2FrequencyDays: 0 };
+    assert.equal(displayTaskDifficulty(zeroExtra, asOf), 1);
   });
 });

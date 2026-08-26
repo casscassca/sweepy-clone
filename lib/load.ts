@@ -30,9 +30,9 @@ export function taskPointLoadPerDay(task: LoadTask) {
   if (task.oneOff || task.frequencyDays <= 0) return 0;
   const base = task.difficulty / task.frequencyDays;
   const addonDays = task.addonFrequencyDays ?? 0;
-  const extra = addonOn(task) && addonDays > 0 ? Math.max(1, task.addonPoints ?? 1) / addonDays : 0;
+  const extra = addonOn(task) && addonDays > 0 ? Math.max(0, task.addonPoints ?? 1) / addonDays : 0;
   const addon2Days = task.addon2FrequencyDays ?? 0;
-  const extra2 = addon2On(task) && addon2Days > 0 ? Math.max(1, task.addon2Points ?? 1) / addon2Days : 0;
+  const extra2 = addon2On(task) && addon2Days > 0 ? Math.max(0, task.addon2Points ?? 1) / addon2Days : 0;
   return base + extra + extra2;
 }
 

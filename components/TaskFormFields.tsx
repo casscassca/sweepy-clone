@@ -49,7 +49,8 @@ export function parseTaskForm(form: HTMLFormElement) {
   const addonFreqCount = Number((form.elements.namedItem("addonFreqCount") as HTMLInputElement)?.value);
   const addonFreqUnit = ((form.elements.namedItem("addonFreqUnit") as HTMLSelectElement)?.value || "week") as FreqUnit;
   const addonFrequencyDays = addonOn && addonName ? daysForFrequency(addonFreqCount, addonFreqUnit) : 0;
-  const addonPoints = addonOn ? Math.min(2, Math.max(1, Number((form.elements.namedItem("addonPoints") as HTMLSelectElement)?.value) || 1)) : 1;
+  const addonPointsRaw = Number((form.elements.namedItem("addonPoints") as HTMLSelectElement)?.value);
+  const addonPoints = addonOn ? Math.min(2, Math.max(0, Number.isFinite(addonPointsRaw) ? addonPointsRaw : 1)) : 1;
   const addonDirtRatio = Number((form.elements.namedItem("addonDirtRatio") as HTMLInputElement)?.value);
   const addonLast = addonOn && addonName && addonFrequencyDays
     ? lastDoneAtFromRatio(Number.isFinite(addonDirtRatio) ? addonDirtRatio : 0, addonFrequencyDays)
@@ -59,7 +60,8 @@ export function parseTaskForm(form: HTMLFormElement) {
   const addon2FreqCount = Number((form.elements.namedItem("addon2FreqCount") as HTMLInputElement)?.value);
   const addon2FreqUnit = ((form.elements.namedItem("addon2FreqUnit") as HTMLSelectElement)?.value || "month") as FreqUnit;
   const addon2FrequencyDays = addon2On && addon2Name ? daysForFrequency(addon2FreqCount, addon2FreqUnit) : 0;
-  const addon2Points = addon2On ? Math.min(2, Math.max(1, Number((form.elements.namedItem("addon2Points") as HTMLSelectElement)?.value) || 1)) : 1;
+  const addon2PointsRaw = Number((form.elements.namedItem("addon2Points") as HTMLSelectElement)?.value);
+  const addon2Points = addon2On ? Math.min(2, Math.max(0, Number.isFinite(addon2PointsRaw) ? addon2PointsRaw : 1)) : 1;
   const addon2DirtRatio = Number((form.elements.namedItem("addon2DirtRatio") as HTMLInputElement)?.value);
   const addon2Last = addon2On && addon2Name && addon2FrequencyDays
     ? lastDoneAtFromRatio(Number.isFinite(addon2DirtRatio) ? addon2DirtRatio : 0, addon2FrequencyDays)
@@ -108,14 +110,18 @@ export default function TaskFormFields({
   const [addonFreqCount, setAddonFreqCount] = useState(initialAddonFreq.count);
   const [addonFreqUnit, setAddonFreqUnit] = useState<FreqUnit>(initialAddonFreq.unit);
   const [addonName, setAddonName] = useState(task?.addonName ?? "");
-  const [addonPoints, setAddonPoints] = useState(task?.addonPoints && task.addonPoints > 0 ? task.addonPoints : 1);
+  const [addonPoints, setAddonPoints] = useState(
+    typeof task?.addonPoints === "number" ? Math.min(2, Math.max(0, task.addonPoints)) : 1,
+  );
   const addonFrequencyDays = useMemo(() => daysForFrequency(addonFreqCount, addonFreqUnit), [addonFreqCount, addonFreqUnit]);
   const [addon2On, setAddon2On] = useState(Boolean(task?.addon2Name?.trim()));
   const initialAddon2Freq = splitFrequency(task?.addon2FrequencyDays && task.addon2FrequencyDays > 0 ? task.addon2FrequencyDays : 30);
   const [addon2FreqCount, setAddon2FreqCount] = useState(initialAddon2Freq.count);
   const [addon2FreqUnit, setAddon2FreqUnit] = useState<FreqUnit>(initialAddon2Freq.unit);
   const [addon2Name, setAddon2Name] = useState(task?.addon2Name ?? "");
-  const [addon2Points, setAddon2Points] = useState(task?.addon2Points && task.addon2Points > 0 ? task.addon2Points : 1);
+  const [addon2Points, setAddon2Points] = useState(
+    typeof task?.addon2Points === "number" ? Math.min(2, Math.max(0, task.addon2Points)) : 1,
+  );
   const addon2FrequencyDays = useMemo(() => daysForFrequency(addon2FreqCount, addon2FreqUnit), [addon2FreqCount, addon2FreqUnit]);
   const comboName = `${taskName.trim() || "This"} and ${addonName.trim() || "…"}`;
   const comboPts = Math.min(3, difficulty + addonPoints);
@@ -233,6 +239,7 @@ export default function TaskFormFields({
             <div className="w-24 shrink-0">
               <label className="block text-xs mb-1.5" style={{ color: "var(--text3)" }}>Extra</label>
               <select name="addonPoints" value={addonPoints} onChange={(e) => setAddonPoints(Number(e.target.value))} className="w-full">
+                <option value={0}>+0 pts</option>
                 <option value={1}>+1 pt</option>
                 <option value={2}>+2 pts</option>
               </select>
@@ -299,6 +306,7 @@ export default function TaskFormFields({
                 <div className="w-24 shrink-0">
                   <label className="block text-xs mb-1.5" style={{ color: "var(--text3)" }}>Extra</label>
                   <select name="addon2Points" value={addon2Points} onChange={(e) => setAddon2Points(Number(e.target.value))} className="w-full">
+                    <option value={0}>+0 pts</option>
                     <option value={1}>+1 pt</option>
                     <option value={2}>+2 pts</option>
                   </select>
