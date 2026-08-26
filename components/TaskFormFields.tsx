@@ -228,7 +228,7 @@ export default function TaskFormFields({
         >
           <div>
             <label className="block text-xs mb-1.5" style={{ color: "var(--text3)" }}>Add-on name</label>
-            <input name="addonName" value={addonName} onChange={(e) => setAddonName(e.target.value)} className="w-full" placeholder="e.g. mop" />
+            <input name="addonName" value={addonName} onChange={(e) => setAddonName(e.target.value)} className="w-full" placeholder="e.g. Mop" />
           </div>
           <div className="flex gap-3">
             <div className="flex-1">
@@ -295,7 +295,7 @@ export default function TaskFormFields({
             >
               <div>
                 <label className="block text-xs mb-1.5" style={{ color: "var(--text3)" }}>Add-on name</label>
-                <input name="addon2Name" value={addon2Name} onChange={(e) => setAddon2Name(e.target.value)} className="w-full" placeholder="e.g. replace filter" />
+                <input name="addon2Name" value={addon2Name} onChange={(e) => setAddon2Name(e.target.value)} className="w-full" placeholder="e.g. Baseboards" />
               </div>
               <div className="flex gap-3">
                 <div className="flex-1">

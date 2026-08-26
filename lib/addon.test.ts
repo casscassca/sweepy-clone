@@ -46,6 +46,12 @@ describe("nested add-on", () => {
     assert.equal(isTaskEligible(food, asOf), true);
   });
 
+  it("keeps add-on titles capitalized in storage but folds them in the row name", () => {
+    const titled = { ...food, addonName: "Clean filter", addon2Name: "Replace filter" };
+    assert.equal(displayTaskName(titled, asOf), "Reset wet food, clean filter, and replace filter");
+    assert.equal(titled.addonName, "Clean filter");
+  });
+
   it("keeps due-only on the main chore and still lets a nested add-on surface the row", () => {
     const onlyStack = {
       ...food,

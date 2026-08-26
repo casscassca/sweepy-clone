@@ -74,12 +74,16 @@ function addon2Label(task: AddonFields) {
   return (task.addon2Name ?? "").trim();
 }
 
+function foldAddonName(name: string) {
+  return name.trim().toLowerCase();
+}
+
 export function comboTaskName(name: string, addon: string) {
-  return `${name} and ${addon}`;
+  return `${name} and ${foldAddonName(addon)}`;
 }
 
 export function stackedTaskName(name: string, addon: string, addon2: string) {
-  return `${name}, ${addon}, and ${addon2}`;
+  return `${name}, ${foldAddonName(addon)}, and ${foldAddonName(addon2)}`;
 }
 
 export function displayTaskName(task: AddonFields, asOf: Date = new Date()) {
