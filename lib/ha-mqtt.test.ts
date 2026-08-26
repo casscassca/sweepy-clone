@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  addonObjectId,
   buildPublishPlan,
   idsToRemove,
+  lastDoneObjectId,
   parseInventory,
   roomObjectId,
   taskObjectId,
@@ -72,8 +74,11 @@ describe("ha mqtt payloads", () => {
     const topicsOut = messages.map((m) => m.topic);
     assert.ok(topicsOut.includes("homeassistant/sensor/sweepy_room_room1/config"));
     assert.ok(topicsOut.includes("homeassistant/sensor/sweepy_task_task1/config"));
+    assert.ok(topicsOut.includes("homeassistant/sensor/sweepy_task_task1_last_done/config"));
     assert.ok(topicsOut.includes("homeassistant/device_automation/sweepy_task_task1_completed/config"));
-    assert.deepEqual(inventory, { tasks: ["task1"], rooms: ["room1"] });
+    assert.deepEqual(inventory.tasks, ["task1"]);
+    assert.deepEqual(inventory.rooms, ["room1"]);
+    assert.ok(inventory.extras.includes(lastDoneObjectId("task1")));
 
     const roomStateMsg = messages.find((m) => m.topic === "sweepy/room/room1/state");
     assert.ok(roomStateMsg);
@@ -102,16 +107,46 @@ describe("ha mqtt payloads", () => {
     assert.equal(inventory.rooms.includes("unassigned"), false);
   });
 
+  it("publishes add-on dirt and last-done as their own sensors", () => {
+    const stacked = {
+      ...feeder,
+      addonName: "clean filter",
+      addonFrequencyDays: 6,
+      addonLastDoneAt: new Date("2026-08-13T12:00:00-05:00"),
+      addon2Name: "replace filter",
+      addon2FrequencyDays: 30,
+      addon2LastDoneAt: new Date("2026-07-20T12:00:00-05:00"),
+    };
+    const { messages } = buildPublishPlan({
+      rooms: [{ id: "room1", name: "Kitchen", icon: "🍳", tasks: [stacked] }],
+      unassigned: [],
+      assignments: [],
+      asOf,
+      today,
+      topics,
+    });
+    const topicsOut = messages.map((m) => m.topic);
+    assert.ok(topicsOut.includes(`homeassistant/sensor/${addonObjectId("task1")}/config`));
+    assert.ok(topicsOut.includes("homeassistant/sensor/sweepy_task_task1_addon_last_done/config"));
+    assert.ok(topicsOut.includes("homeassistant/sensor/sweepy_task_task1_addon2/config"));
+    const addonState = messages.find((m) => m.topic === "sweepy/task/task1/addon/state");
+    assert.ok(addonState);
+    const json: unknown = JSON.parse(addonState.payload);
+    assert.ok(json && typeof json === "object" && "dirt" in json);
+    assert.equal(json.dirt, 1);
+  });
+
   it("tombstones removed tasks and rooms", () => {
     assert.deepEqual(idsToRemove(["a", "b"], ["b"]), ["a"]);
     const topicsOut = tombstoneTopics(topics, ["gone"], ["oldroom"]);
     assert.ok(topicsOut.includes("homeassistant/sensor/sweepy_task_gone/config"));
+    assert.ok(topicsOut.includes(`homeassistant/sensor/${lastDoneObjectId("gone")}/config`));
     assert.ok(topicsOut.includes("homeassistant/device_automation/sweepy_task_gone_completed/config"));
     assert.ok(topicsOut.includes("homeassistant/sensor/sweepy_room_oldroom/config"));
   });
 
   it("reads a retained inventory payload", () => {
-    assert.deepEqual(parseInventory({ tasks: ["t1"], rooms: ["r1"] }), { tasks: ["t1"], rooms: ["r1"] });
-    assert.deepEqual(parseInventory("nope"), { tasks: [], rooms: [] });
+    assert.deepEqual(parseInventory({ tasks: ["t1"], rooms: ["r1"] }), { tasks: ["t1"], rooms: ["r1"], extras: [] });
+    assert.deepEqual(parseInventory("nope"), { tasks: [], rooms: [], extras: [] });
   });
 });

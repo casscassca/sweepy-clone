@@ -7,6 +7,7 @@ import {
   parseInventory,
   tombstoneTopics,
   type HaMqttAssignment,
+  type HaMqttInventory,
   type HaMqttTask,
   type HaMqttTopics,
   type MqttMessage,
@@ -61,7 +62,7 @@ let started = false;
 let client: MqttClient | null = null;
 let syncTimer: ReturnType<typeof setTimeout> | null = null;
 let syncLock: Promise<void> = Promise.resolve();
-let lastInventory: { tasks: string[]; rooms: string[] } = { tasks: [], rooms: [] };
+let lastInventory: HaMqttInventory = { tasks: [], rooms: [], extras: [] };
 let inventoryHydrated = false;
 
 export function haMqttStatus() {
@@ -124,10 +125,10 @@ function connectBroker(cfg: MqttConn) {
 
 function readRetainedInventory(sock: MqttClient, cfg: MqttConn) {
   const topic = `${cfg.topics.base}/inventory`;
-  return new Promise<{ tasks: string[]; rooms: string[] }>((resolve) => {
+  return new Promise<HaMqttInventory>((resolve) => {
     const timer = setTimeout(() => {
       sock.removeListener("message", onMessage);
-      resolve({ tasks: [], rooms: [] });
+      resolve({ tasks: [], rooms: [], extras: [] });
     }, 1500);
     const onMessage = (t: string, payload: Buffer) => {
       if (t !== topic) return;
@@ -268,6 +269,7 @@ async function publishInventory(cfg: MqttConn) {
     cfg.topics,
     idsToRemove(lastInventory.tasks, inventory.tasks),
     idsToRemove(lastInventory.rooms, inventory.rooms),
+    idsToRemove(lastInventory.extras, inventory.extras),
   )) {
     await publish({ topic, payload: "", retain: true });
   }

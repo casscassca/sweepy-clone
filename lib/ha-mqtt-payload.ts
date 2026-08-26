@@ -75,6 +75,26 @@ export function taskObjectId(taskId: string) {
   return `sweepy_task_${taskId}`;
 }
 
+export function lastDoneObjectId(taskId: string) {
+  return `sweepy_task_${taskId}_last_done`;
+}
+
+export function addonObjectId(taskId: string) {
+  return `sweepy_task_${taskId}_addon`;
+}
+
+export function addonLastDoneObjectId(taskId: string) {
+  return `sweepy_task_${taskId}_addon_last_done`;
+}
+
+export function addon2ObjectId(taskId: string) {
+  return `sweepy_task_${taskId}_addon2`;
+}
+
+export function addon2LastDoneObjectId(taskId: string) {
+  return `sweepy_task_${taskId}_addon2_last_done`;
+}
+
 export function roomObjectId(roomId: string) {
   return `sweepy_room_${roomId}`;
 }
@@ -83,15 +103,20 @@ export function completedTriggerId(taskId: string) {
   return `sweepy_task_${taskId}_completed`;
 }
 
-export function parseInventory(raw: unknown): { tasks: string[]; rooms: string[] } {
-  if (!raw || typeof raw !== "object") return { tasks: [], rooms: [] };
+export type HaMqttInventory = { tasks: string[]; rooms: string[]; extras: string[] };
+
+export function parseInventory(raw: unknown): HaMqttInventory {
+  if (!raw || typeof raw !== "object") return { tasks: [], rooms: [], extras: [] };
   const tasks = "tasks" in raw && Array.isArray(raw.tasks)
     ? raw.tasks.filter((id): id is string => typeof id === "string")
     : [];
   const rooms = "rooms" in raw && Array.isArray(raw.rooms)
     ? raw.rooms.filter((id): id is string => typeof id === "string")
     : [];
-  return { tasks, rooms };
+  const extras = "extras" in raw && Array.isArray(raw.extras)
+    ? raw.extras.filter((id): id is string => typeof id === "string")
+    : [];
+  return { tasks, rooms, extras };
 }
 
 export function idsToRemove(previous: string[], current: string[]) {
@@ -190,6 +215,30 @@ export function taskState(
   };
 }
 
+export function layerDirtState(opts: {
+  name: string;
+  lastDoneAt: Date | string | null;
+  frequencyDays: number;
+  asOf: Date;
+  parentId: string;
+  layer: "addon" | "addon2";
+}) {
+  const dirt = roundDirt(dirtinessRatio(opts.lastDoneAt, opts.frequencyDays, opts.asOf));
+  return {
+    dirt,
+    dirt_word: dirtWord(dirt),
+    cleanliness_pct: Math.round(cleanlinessPct(dirt)),
+    last_done_at: isoOrNull(opts.lastDoneAt),
+    frequency_days: opts.frequencyDays,
+    frequency: formatFrequency(opts.frequencyDays),
+    due: dirt >= 1,
+    overdue: dirt > 1,
+    parent_task_id: opts.parentId,
+    name: opts.name,
+    layer: opts.layer,
+  };
+}
+
 function sensorDiscovery(opts: {
   name: string;
   objectId: string;
@@ -202,6 +251,7 @@ function sensorDiscovery(opts: {
   icon: string;
   precision?: number;
   stateClass?: string;
+  deviceClass?: string;
 }) {
   return {
     name: opts.name,
@@ -213,9 +263,10 @@ function sensorDiscovery(opts: {
     device: opts.device,
     origin: origin(),
     icon: opts.icon,
-    suggested_display_precision: opts.precision ?? 0,
+    ...(opts.precision !== undefined ? { suggested_display_precision: opts.precision } : {}),
     ...(opts.unit ? { unit_of_measurement: opts.unit } : {}),
     ...(opts.stateClass ? { state_class: opts.stateClass } : {}),
+    ...(opts.deviceClass ? { device_class: opts.deviceClass } : {}),
     ...availability(opts.topics.base),
   };
 }
@@ -265,14 +316,68 @@ export function completedTriggerDiscovery(task: HaMqttTask, topics: HaMqttTopics
   };
 }
 
-export function tombstoneTopics(topics: HaMqttTopics, taskIds: string[], roomIds: string[]): string[] {
+export function lastDoneDiscovery(opts: {
+  name: string;
+  objectId: string;
+  stateTopic: string;
+  task: HaMqttTask;
+  topics: HaMqttTopics;
+}) {
+  return sensorDiscovery({
+    name: opts.name,
+    objectId: opts.objectId,
+    uniqueId: opts.objectId,
+    stateTopic: opts.stateTopic,
+    valueTemplate: "{{ value_json.last_done_at }}",
+    device: roomDevice(opts.task.roomId, opts.task.roomName),
+    topics: opts.topics,
+    icon: "mdi:clock-outline",
+    deviceClass: "timestamp",
+  });
+}
+
+export function addonDirtDiscovery(opts: {
+  name: string;
+  objectId: string;
+  stateTopic: string;
+  task: HaMqttTask;
+  topics: HaMqttTopics;
+}) {
+  return sensorDiscovery({
+    name: opts.name,
+    objectId: opts.objectId,
+    uniqueId: opts.objectId,
+    stateTopic: opts.stateTopic,
+    valueTemplate: "{{ value_json.dirt }}",
+    device: roomDevice(opts.task.roomId, opts.task.roomName),
+    topics: opts.topics,
+    icon: "mdi:checkbox-marked-outline",
+    precision: 2,
+    stateClass: "measurement",
+  });
+}
+
+export function tombstoneTopics(
+  topics: HaMqttTopics,
+  taskIds: string[],
+  roomIds: string[],
+  extraObjectIds: string[] = [],
+): string[] {
   const out: string[] = [];
   for (const id of taskIds) {
     out.push(`${topics.discoveryPrefix}/sensor/${taskObjectId(id)}/config`);
+    out.push(`${topics.discoveryPrefix}/sensor/${lastDoneObjectId(id)}/config`);
+    out.push(`${topics.discoveryPrefix}/sensor/${addonObjectId(id)}/config`);
+    out.push(`${topics.discoveryPrefix}/sensor/${addonLastDoneObjectId(id)}/config`);
+    out.push(`${topics.discoveryPrefix}/sensor/${addon2ObjectId(id)}/config`);
+    out.push(`${topics.discoveryPrefix}/sensor/${addon2LastDoneObjectId(id)}/config`);
     out.push(`${topics.discoveryPrefix}/device_automation/${completedTriggerId(id)}/config`);
   }
   for (const id of roomIds) {
     out.push(`${topics.discoveryPrefix}/sensor/${roomObjectId(id)}/config`);
+  }
+  for (const objectId of extraObjectIds) {
+    out.push(`${topics.discoveryPrefix}/sensor/${objectId}/config`);
   }
   return out;
 }
@@ -301,7 +406,7 @@ export function buildPublishPlan(opts: {
   asOf: Date;
   today: string;
   topics: HaMqttTopics;
-}): { messages: MqttMessage[]; inventory: { tasks: string[]; rooms: string[] } } {
+}): { messages: MqttMessage[]; inventory: HaMqttInventory } {
   const { rooms, unassigned, assignments, asOf, today, topics } = opts;
   const nextByTask = new Map<string, HaMqttAssignment>();
   for (const row of assignments) {
@@ -312,6 +417,7 @@ export function buildPublishPlan(opts: {
   const messages: MqttMessage[] = [];
   const taskIds: string[] = [];
   const roomIds: string[] = [];
+  const extras: string[] = [];
 
   function pushDiscovery(component: string, objectId: string, body: object) {
     messages.push({
@@ -323,13 +429,91 @@ export function buildPublishPlan(opts: {
 
   function publishTask(task: HaMqttTask) {
     taskIds.push(task.id);
+    const stateTopic = `${topics.base}/task/${task.id}/state`;
+    const lastDoneId = lastDoneObjectId(task.id);
+    extras.push(lastDoneId);
     pushDiscovery("sensor", taskObjectId(task.id), taskDiscovery(task, topics));
+    pushDiscovery("sensor", lastDoneId, lastDoneDiscovery({
+      name: `${task.name} last done`,
+      objectId: lastDoneId,
+      stateTopic,
+      task,
+      topics,
+    }));
     pushDiscovery("device_automation", completedTriggerId(task.id), completedTriggerDiscovery(task, topics));
     messages.push({
-      topic: `${topics.base}/task/${task.id}/state`,
+      topic: stateTopic,
       payload: JSON.stringify(taskState(task, nextByTask.get(task.id), asOf, today)),
       retain: true,
     });
+
+    if (hasAddon(task)) {
+      const addonTopic = `${topics.base}/task/${task.id}/addon/state`;
+      const dirtId = addonObjectId(task.id);
+      const doneId = addonLastDoneObjectId(task.id);
+      extras.push(dirtId, doneId);
+      const addonName = task.addonName.trim();
+      pushDiscovery("sensor", dirtId, addonDirtDiscovery({
+        name: addonName,
+        objectId: dirtId,
+        stateTopic: addonTopic,
+        task,
+        topics,
+      }));
+      pushDiscovery("sensor", doneId, lastDoneDiscovery({
+        name: `${addonName} last done`,
+        objectId: doneId,
+        stateTopic: addonTopic,
+        task,
+        topics,
+      }));
+      messages.push({
+        topic: addonTopic,
+        payload: JSON.stringify(layerDirtState({
+          name: addonName,
+          lastDoneAt: task.addonLastDoneAt,
+          frequencyDays: task.addonFrequencyDays,
+          asOf,
+          parentId: task.id,
+          layer: "addon",
+        })),
+        retain: true,
+      });
+    }
+
+    if (hasAddon2(task)) {
+      const addonTopic = `${topics.base}/task/${task.id}/addon2/state`;
+      const dirtId = addon2ObjectId(task.id);
+      const doneId = addon2LastDoneObjectId(task.id);
+      extras.push(dirtId, doneId);
+      const addonName = task.addon2Name.trim();
+      pushDiscovery("sensor", dirtId, addonDirtDiscovery({
+        name: addonName,
+        objectId: dirtId,
+        stateTopic: addonTopic,
+        task,
+        topics,
+      }));
+      pushDiscovery("sensor", doneId, lastDoneDiscovery({
+        name: `${addonName} last done`,
+        objectId: doneId,
+        stateTopic: addonTopic,
+        task,
+        topics,
+      }));
+      messages.push({
+        topic: addonTopic,
+        payload: JSON.stringify(layerDirtState({
+          name: addonName,
+          lastDoneAt: task.addon2LastDoneAt,
+          frequencyDays: task.addon2FrequencyDays,
+          asOf,
+          parentId: task.id,
+          layer: "addon2",
+        })),
+        retain: true,
+      });
+    }
   }
 
   function publishRoom(room: HaMqttRoom) {
@@ -354,9 +538,9 @@ export function buildPublishPlan(opts: {
 
   messages.push({
     topic: `${topics.base}/inventory`,
-    payload: JSON.stringify({ tasks: taskIds, rooms: roomIds }),
+    payload: JSON.stringify({ tasks: taskIds, rooms: roomIds, extras }),
     retain: true,
   });
 
-  return { messages, inventory: { tasks: taskIds, rooms: roomIds } };
+  return { messages, inventory: { tasks: taskIds, rooms: roomIds, extras } };
 }
