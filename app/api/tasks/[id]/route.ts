@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { addonFields } from "@/lib/addon";
 import { normalizeAllowedDays } from "@/lib/allowed-days";
+import { scheduleHaMqttSync } from "@/lib/ha-mqtt";
 import { prisma } from "@/lib/prisma";
 import { dropCleanUnheldAssignments } from "@/lib/scheduler";
 
@@ -39,11 +40,13 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   });
 
   await dropCleanUnheldAssignments();
+  scheduleHaMqttSync();
   return NextResponse.json(task);
 }
 
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   await prisma.task.delete({ where: { id } });
+  scheduleHaMqttSync();
   return NextResponse.json({ ok: true });
 }

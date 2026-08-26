@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
+import { scheduleHaMqttSync } from "@/lib/ha-mqtt";
 import { addTaskToDate, createOneOff } from "@/lib/scheduler";
 import { COOKIE_NAME, verifySessionToken } from "@/lib/auth";
 import { format } from "date-fns";
@@ -35,6 +36,7 @@ export async function PATCH(req: Request) {
     )
   );
 
+  scheduleHaMqttSync();
   return NextResponse.json({ ok: true });
 }
 
@@ -74,5 +76,6 @@ export async function POST(req: Request) {
     if (!result.ok) return NextResponse.json(result, { status: result.status });
     results.push(result);
   }
+  scheduleHaMqttSync();
   return NextResponse.json(taskIds.length === 1 ? results[0] : { ok: true, added: results.length });
 }

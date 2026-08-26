@@ -14,6 +14,7 @@ import {
 import { personAway, returnDay } from "./vacation";
 import { applyDirtPause, loadVacationContext } from "./vacation-db";
 import { isAllowedOnDate, nextAllowedOnOrAfter } from "./allowed-days";
+import { scheduleHaMqttSync } from "./ha-mqtt";
 import { addDays, format, parseISO } from "date-fns";
 
 function todayStr() {
@@ -244,6 +245,7 @@ export async function reshuffleFrom(
   for (const date of days) {
     assigned += (await runDailyAssignment(date, fromDate, { prepare: false })).assigned;
   }
+  scheduleHaMqttSync();
   return { assigned };
 }
 

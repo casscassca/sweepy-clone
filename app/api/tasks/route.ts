@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { addonFields } from "@/lib/addon";
 import { normalizeAllowedDays } from "@/lib/allowed-days";
+import { scheduleHaMqttSync } from "@/lib/ha-mqtt";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(req: Request) {
@@ -26,5 +27,6 @@ export async function POST(req: Request) {
     include: { assignableUsers: { include: { user: true } } },
   });
 
+  scheduleHaMqttSync();
   return NextResponse.json(task, { status: 201 });
 }

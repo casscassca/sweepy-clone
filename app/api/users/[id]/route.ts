@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { encodeWeek, parseWeek } from "@/lib/capacity";
 import { prisma } from "@/lib/prisma";
 import { hashPassword, generateWebhookSecret } from "@/lib/auth";
+import { scheduleHaMqttSync } from "@/lib/ha-mqtt";
 import { prepareAssignments } from "@/lib/scheduler";
 import { ymd } from "@/lib/vacation";
 import { calendarDayStr } from "@/lib/dates";
@@ -74,6 +75,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (typeof body.vacationOn === "boolean" || body.vacationStart !== undefined || body.vacationEnd !== undefined) {
     await prepareAssignments(calendarDayStr());
   }
+  scheduleHaMqttSync();
   const { passwordHash, ...rest } = user;
   return NextResponse.json({ ...rest, hasPassword: passwordHash != null });
 }
@@ -81,5 +83,6 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   await prisma.user.delete({ where: { id } });
+  scheduleHaMqttSync();
   return NextResponse.json({ ok: true });
 }

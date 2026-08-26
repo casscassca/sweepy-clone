@@ -15,6 +15,13 @@ type LoadStatus = {
 
 type HaPerson = { name: string; target: string; resolved: string | null; ok: boolean; hint: string | null };
 type HaLog = { id: string; createdAt: string; kind: string; ok: boolean; userName: string; summary: string; detail: string };
+type HaMqttStatus = {
+  configured: boolean;
+  connected: boolean;
+  lastError: string | null;
+  lastSyncAt: string | null;
+  url: string | null;
+};
 type HaStatus = {
   configured: boolean;
   url: string | null;
@@ -27,6 +34,7 @@ type HaStatus = {
   entities: string[];
   people: HaPerson[];
   log: HaLog[];
+  mqtt?: HaMqttStatus;
 };
 
 export default function SettingsPage() {
@@ -123,6 +131,11 @@ export default function SettingsPage() {
                 ? "Listening for Done / Tomorrow / Yesterday taps"
                 : ha.listenError ?? "Not listening for button taps yet"}
             </p>
+            <p className="text-sm" style={{ color: ha.mqtt?.connected ? "var(--green)" : "var(--text3)" }}>
+              {ha.mqtt?.connected
+                ? `Publishing rooms and chores to ${ha.mqtt.url}`
+                : ha.mqtt?.lastError ?? "MQTT not connected"}
+            </p>
           </div>
         ) : (
           <p className="text-sm" style={{ color: "var(--text3)" }}>Checking connection…</p>
@@ -198,8 +211,11 @@ export default function SettingsPage() {
         {showHaDetails && (
           <div className="space-y-3">
             <p className="text-sm" style={{ color: "var(--text2)" }}>
-              The house connection is <code className="text-xs">HA_URL</code> and <code className="text-xs">HA_TOKEN</code> in the Pi <code className="text-xs">.env</code> — one token for everyone.
+              The house connection is <code className="text-xs">HA_URL</code> and <code className="text-xs">HA_TOKEN</code> in the Pi <code className="text-xs">.env</code>, one token for everyone.
               Sweepy listens for the notification buttons on that connection, so you do not need a Home Assistant automation for Done / Tomorrow / Yesterday.
+            </p>
+            <p className="text-sm" style={{ color: "var(--text2)" }}>
+              Chore sensors use the same Mosquitto broker as Zigbee, no login. Set <code className="text-xs">MQTT_URL</code> in that same <code className="text-xs">.env</code>. Rooms show up as Home Assistant devices with a cleanliness % and each catalog chore as a dirt sensor.
             </p>
             {ha && ha.services.length > 0 && (
               <div>

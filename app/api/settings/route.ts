@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { scheduleHaMqttSync } from "@/lib/ha-mqtt";
 import { prepareAssignments } from "@/lib/scheduler";
 import { houseVacationActive, ymd } from "@/lib/vacation";
 import { calendarDayStr } from "@/lib/dates";
@@ -44,6 +45,7 @@ export async function PATCH(req: Request) {
     update: data,
   });
   await prepareAssignments(calendarDayStr());
+  scheduleHaMqttSync();
   const { sessionSecret, haUrl: _haUrl, haToken: _haToken, ...safe } = settings;
   return NextResponse.json(withDirtAsOf(safe));
 }

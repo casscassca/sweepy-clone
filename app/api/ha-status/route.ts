@@ -2,9 +2,11 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { haConfig, listHaNotifyCatalog, resolveNotifyTarget } from "@/lib/ha";
 import { haEventStatus } from "@/lib/ha-events";
+import { haMqttStatus } from "@/lib/ha-mqtt";
 
 export async function GET() {
   const ha = haConfig();
+  const mqtt = haMqttStatus();
   const log = prisma.integrationLog
     ? await prisma.integrationLog.findMany({
         orderBy: { createdAt: "desc" },
@@ -22,6 +24,7 @@ export async function GET() {
       entities: [],
       people: [],
       log,
+      mqtt,
     });
   }
 
@@ -57,5 +60,6 @@ export async function GET() {
     entities: catalog.entities,
     people,
     log,
+    mqtt,
   });
 }

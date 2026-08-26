@@ -1,5 +1,6 @@
 import { format } from "date-fns";
 import { isAddonDue } from "./addon";
+import { publishHaMqttTaskEvent, scheduleHaMqttSync } from "./ha-mqtt";
 import { prisma } from "./prisma";
 import { addTaskToDate, dismissAssignmentNotify, holdAssignmentOnDate } from "./scheduler";
 
@@ -49,6 +50,14 @@ export async function completeAssignment(opts: {
 
   void dismissAssignmentNotify(opts.assignmentId);
   if (assignment.id !== opts.assignmentId) void dismissAssignmentNotify(assignment.id);
+
+  void publishHaMqttTaskEvent({
+    kind: "completed",
+    taskId: assignment.taskId,
+    completedAt: opts.completedAt,
+    userId: assignment.userId,
+    completedById,
+  });
 
   return { ok: true as const, assignment };
 }
@@ -129,6 +138,7 @@ export async function uncompleteFromLog(logId: string) {
     });
   }
 
+  scheduleHaMqttSync();
   return { ok: true as const };
 }
 
@@ -150,5 +160,6 @@ export async function uncompleteAssignment(assignmentId: string) {
     where: { id: assignmentId },
     data: { completedAt: null, completedById: null },
   });
+  scheduleHaMqttSync();
   return { ok: true as const };
 }

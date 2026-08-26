@@ -38,3 +38,11 @@ HA_TOKEN=...
 ```
 
 Notify entities (`notify.pixel` or `notify.mobile_app_pixel`) are set on each person in the app. Sweepy listens on the HA websocket for Done / Tomorrow / Yesterday — no automation required.
+
+Rooms and catalog chores publish to that same Mosquitto. The broker is anonymous (no user) on port 1883. From the Sweepy container:
+
+```
+MQTT_URL=mqtt://host.docker.internal:1883
+```
+
+Each room becomes an HA device with a cleanliness % (the Rooms bar) and a dirt sensor per chore. Completing a chore publishes `sweepy/event/task_completed`. Put `MQTT_URL` on the Pi only so the laptop does not double-publish.

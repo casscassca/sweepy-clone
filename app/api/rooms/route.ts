@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { scheduleHaMqttSync } from "@/lib/ha-mqtt";
 import { prisma } from "@/lib/prisma";
 
 export async function GET() {
@@ -19,5 +20,6 @@ export async function POST(req: Request) {
   const { name, icon } = await req.json();
   const count = await prisma.room.count();
   const room = await prisma.room.create({ data: { name, icon: icon ?? "🏠", order: count } });
+  scheduleHaMqttSync();
   return NextResponse.json(room, { status: 201 });
 }
