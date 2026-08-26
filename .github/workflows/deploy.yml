@@ -52,7 +52,7 @@ jobs:
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:backup
           platforms: linux/arm64
           cache-from: type=gha,scope=backup
-          cache-to: type=gha,mode=max,scope=backup
+          cache-to: type=gha,mode=max,scope=backup,ignore-error=true
 
       - name: Build and push the Docker image
         uses: docker/build-push-action@v6
@@ -64,7 +64,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/arm64
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-to: type=gha,mode=max,ignore-error=true
 
   # Repo-scoped runner at ~/actions-runners/sweepy (same pattern as
   # actual-helpers). Operates on the home-dir checkout, not _work.
