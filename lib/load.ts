@@ -10,10 +10,18 @@ export type LoadTask = {
   addonFrequencyDays?: number | null;
   addonPoints?: number | null;
   addonLastDoneAt?: Date | string | null;
+  addon2Name?: string | null;
+  addon2FrequencyDays?: number | null;
+  addon2Points?: number | null;
+  addon2LastDoneAt?: Date | string | null;
 };
 
 function addonOn(task: LoadTask) {
   return Boolean(task.addonName?.trim()) && (task.addonFrequencyDays ?? 0) > 0;
+}
+
+function addon2On(task: LoadTask) {
+  return addonOn(task) && Boolean(task.addon2Name?.trim()) && (task.addon2FrequencyDays ?? 0) > 0;
 }
 
 export type LoadPerson = PersonCaps;
@@ -21,8 +29,11 @@ export type LoadPerson = PersonCaps;
 export function taskPointLoadPerDay(task: LoadTask) {
   if (task.oneOff || task.frequencyDays <= 0) return 0;
   const base = task.difficulty / task.frequencyDays;
-  const extra = addonOn(task) ? Math.max(1, task.addonPoints ?? 1) / (task.addonFrequencyDays as number) : 0;
-  return base + extra;
+  const addonDays = task.addonFrequencyDays ?? 0;
+  const extra = addonOn(task) && addonDays > 0 ? Math.max(1, task.addonPoints ?? 1) / addonDays : 0;
+  const addon2Days = task.addon2FrequencyDays ?? 0;
+  const extra2 = addon2On(task) && addon2Days > 0 ? Math.max(1, task.addon2Points ?? 1) / addon2Days : 0;
+  return base + extra + extra2;
 }
 
 export function taskCountLoadPerDay(task: LoadTask) {

@@ -5,8 +5,8 @@ import { scheduleHaMqttSync } from "@/lib/ha-mqtt";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(req: Request) {
-  const { name, roomId, difficulty, frequencyDays, allowedDays, assignableUserIds, lastDoneAt, important, dueOnly, notes, addonName, addonFrequencyDays, addonPoints, addonLastDoneAt } = await req.json();
-  const addon = addonFields({ addonName, addonFrequencyDays, addonPoints, addonLastDoneAt });
+  const { name, roomId, difficulty, frequencyDays, allowedDays, assignableUserIds, lastDoneAt, important, dueOnly, notes, addonName, addonFrequencyDays, addonPoints, addonLastDoneAt, addon2Name, addon2FrequencyDays, addon2Points, addon2LastDoneAt } = await req.json();
+  const addon = addonFields({ addonName, addonFrequencyDays, addonPoints, addonLastDoneAt, addon2Name, addon2FrequencyDays, addon2Points, addon2LastDoneAt });
 
   const task = await prisma.task.create({
     data: {

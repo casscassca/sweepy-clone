@@ -48,12 +48,13 @@ export async function applyDirtPause(day: string) {
   const days = calendarDaysBetween(day, house.dirtFrozenOn);
   if (days > 0) {
     const tasks = await prisma.task.findMany({
-      select: { id: true, lastDoneAt: true, addonLastDoneAt: true },
+      select: { id: true, lastDoneAt: true, addonLastDoneAt: true, addon2LastDoneAt: true },
     });
     for (const task of tasks) {
-      const data: { lastDoneAt?: Date; addonLastDoneAt?: Date } = {};
+      const data: { lastDoneAt?: Date; addonLastDoneAt?: Date; addon2LastDoneAt?: Date } = {};
       if (task.lastDoneAt) data.lastDoneAt = addDays(task.lastDoneAt, days);
       if (task.addonLastDoneAt) data.addonLastDoneAt = addDays(task.addonLastDoneAt, days);
+      if (task.addon2LastDoneAt) data.addon2LastDoneAt = addDays(task.addon2LastDoneAt, days);
       if (Object.keys(data).length > 0) {
         await prisma.task.update({ where: { id: task.id }, data });
       }

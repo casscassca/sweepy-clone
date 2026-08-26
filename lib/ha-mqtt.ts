@@ -291,6 +291,10 @@ function toHaTask(task: {
   addonFrequencyDays: number;
   addonPoints: number;
   addonLastDoneAt: Date | null;
+  addon2Name: string;
+  addon2FrequencyDays: number;
+  addon2Points: number;
+  addon2LastDoneAt: Date | null;
   roomId: string | null;
   room?: { name: string } | null;
   assignableUsers: { user: { name: string } }[];
@@ -309,6 +313,10 @@ function toHaTask(task: {
     addonFrequencyDays: task.addonFrequencyDays,
     addonPoints: task.addonPoints,
     addonLastDoneAt: task.addonLastDoneAt,
+    addon2Name: task.addon2Name,
+    addon2FrequencyDays: task.addon2FrequencyDays,
+    addon2Points: task.addon2Points,
+    addon2LastDoneAt: task.addon2LastDoneAt,
     assignable: task.assignableUsers.map((row) => row.user.name),
     roomId: task.roomId,
     roomName: task.room?.name ?? null,

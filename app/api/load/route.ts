@@ -16,6 +16,10 @@ export async function GET() {
         addonFrequencyDays: true,
         addonPoints: true,
         addonLastDoneAt: true,
+        addon2Name: true,
+        addon2FrequencyDays: true,
+        addon2Points: true,
+        addon2LastDoneAt: true,
       },
     }),
     prisma.user.findMany({

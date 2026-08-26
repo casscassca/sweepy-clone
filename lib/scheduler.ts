@@ -60,7 +60,7 @@ export async function dedupeOpenAssignments() {
 export async function dropCleanUnheldAssignments() {
   const open = await prisma.dailyAssignment.findMany({
     where: { completedAt: null, held: false, parked: false },
-    include: { task: { select: { lastDoneAt: true, frequencyDays: true, oneOff: true, dueOnly: true, addonName: true, addonFrequencyDays: true, addonPoints: true, addonLastDoneAt: true } } },
+    include: { task: { select: { lastDoneAt: true, frequencyDays: true, oneOff: true, dueOnly: true, addonName: true, addonFrequencyDays: true, addonPoints: true, addonLastDoneAt: true, addon2Name: true, addon2FrequencyDays: true, addon2Points: true, addon2LastDoneAt: true } } },
   });
   const { house, dirtAsOf } = await loadVacationContext(todayStr());
   const drop = open
@@ -112,6 +112,10 @@ const TASK_LOAD_SELECT = {
   addonFrequencyDays: true,
   addonPoints: true,
   addonLastDoneAt: true,
+  addon2Name: true,
+  addon2FrequencyDays: true,
+  addon2Points: true,
+  addon2LastDoneAt: true,
 } as const;
 
 async function catalogUseOn(date: string, userId: string) {
@@ -540,7 +544,7 @@ export async function runDailyAssignment(
     prisma.user.findMany({ orderBy: { createdAt: "asc" } }),
     prisma.dailyAssignment.findMany({
       where: { date, parked: false },
-      include: { task: { select: { difficulty: true, lastDoneAt: true, frequencyDays: true, oneOff: true, dueOnly: true, addonName: true, addonFrequencyDays: true, addonPoints: true, addonLastDoneAt: true } } },
+      include: { task: { select: { difficulty: true, lastDoneAt: true, frequencyDays: true, oneOff: true, dueOnly: true, addonName: true, addonFrequencyDays: true, addonPoints: true, addonLastDoneAt: true, addon2Name: true, addon2FrequencyDays: true, addon2Points: true, addon2LastDoneAt: true } } },
     }),
     prisma.dailyAssignment.findMany({
       where: { completedAt: null, date: { not: date } },
@@ -924,7 +928,7 @@ export async function fillUserTodayAndNotify(userId: string) {
 
   const open = await prisma.dailyAssignment.findMany({
     where: { userId, date, completedAt: null, parked: false },
-    include: { task: { select: { difficulty: true, lastDoneAt: true, frequencyDays: true, dueOnly: true, addonName: true, addonFrequencyDays: true, addonPoints: true, addonLastDoneAt: true } } },
+    include: { task: { select: { difficulty: true, lastDoneAt: true, frequencyDays: true, dueOnly: true, addonName: true, addonFrequencyDays: true, addonPoints: true, addonLastDoneAt: true, addon2Name: true, addon2FrequencyDays: true, addon2Points: true, addon2LastDoneAt: true } } },
   });
   const asOf = new Date(`${date}T12:00:00`);
   const points = open.reduce((s, a) => s + displayTaskDifficulty(a.task, asOf), 0);

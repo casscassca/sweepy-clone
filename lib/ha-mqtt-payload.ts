@@ -1,5 +1,5 @@
 import { formatAllowedDays } from "./allowed-days";
-import { displayTaskName, hasAddon, isAddonDue, isCatchUpTask, isDueToday } from "./addon";
+import { displayTaskName, hasAddon, hasAddon2, isAddon2Due, isAddonDue, isCatchUpTask, isDueToday } from "./addon";
 import { cleanlinessPct, dirtinessRatio, dirtWord, dueOnAllowedDay, roomDirtiness } from "./dirtiness";
 import { formatFrequency } from "./frequency";
 
@@ -19,6 +19,10 @@ export type HaMqttTask = {
   addonFrequencyDays: number;
   addonPoints: number;
   addonLastDoneAt: Date | string | null;
+  addon2Name: string;
+  addon2FrequencyDays: number;
+  addon2Points: number;
+  addon2LastDoneAt: Date | string | null;
   assignable: string[];
   roomId: string | null;
   roomName: string | null;
@@ -148,6 +152,7 @@ export function taskState(
 ) {
   const dirt = roundDirt(dirtinessRatio(task.lastDoneAt, task.frequencyDays, asOf));
   const addonOn = hasAddon(task);
+  const stackOn = hasAddon2(task);
   return {
     dirt,
     dirt_word: dirtWord(dirt),
@@ -169,6 +174,11 @@ export function taskState(
     addon_points: addonOn ? task.addonPoints : 0,
     addon_last_done_at: addonOn ? isoOrNull(task.addonLastDoneAt) : null,
     addon_due: isAddonDue(task, asOf),
+    addon2_name: stackOn ? task.addon2Name.trim() : "",
+    addon2_frequency_days: stackOn ? task.addon2FrequencyDays : 0,
+    addon2_points: stackOn ? task.addon2Points : 0,
+    addon2_last_done_at: stackOn ? isoOrNull(task.addon2LastDoneAt) : null,
+    addon2_due: isAddon2Due(task, asOf),
     overdue: isCatchUpTask(task, asOf),
     due_today: isDueToday(task, asOf),
     assignable: task.assignable,

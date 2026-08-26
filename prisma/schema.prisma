@@ -33,6 +33,10 @@ model Task {
   addonFrequencyDays  Int       @default(0)
   addonPoints         Int       @default(1)
   addonLastDoneAt     DateTime?
+  addon2Name          String    @default("")
+  addon2FrequencyDays Int       @default(0)
+  addon2Points        Int       @default(1)
+  addon2LastDoneAt    DateTime?
   createdAt     DateTime @default(now())
   assignableUsers TaskAssignableUser[]
   assignments     DailyAssignment[]

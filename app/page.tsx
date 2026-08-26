@@ -16,7 +16,7 @@ import { useHideDone } from "@/lib/hide-done";
 import { invalidateLists, loadJson } from "@/lib/api-cache";
 
 type User = { id: string; name: string; color: string; dailyCapacity: number; dailyTaskLimit?: number };
-type Task = { id: string; name: string; difficulty: number; oneOff?: boolean; important?: boolean; notes?: string; addonName?: string; addonFrequencyDays?: number; addonPoints?: number; addonLastDoneAt?: string | null; lastDoneAt?: string | null; frequencyDays?: number; dueOnly?: boolean; room: { name: string } | null };
+type Task = { id: string; name: string; difficulty: number; oneOff?: boolean; important?: boolean; notes?: string; addonName?: string; addonFrequencyDays?: number; addonPoints?: number; addonLastDoneAt?: string | null; addon2Name?: string; addon2FrequencyDays?: number; addon2Points?: number; addon2LastDoneAt?: string | null; lastDoneAt?: string | null; frequencyDays?: number; dueOnly?: boolean; room: { name: string } | null };
 type Assignment = { id: string; userId: string; order: number; completedAt: string | null; pinned?: boolean; task: Task; user: User };
 
 const DIFF_COLOR = ["", "#a78bfa", "#fb923c", "#f87171"];

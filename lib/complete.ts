@@ -1,5 +1,5 @@
 import { format } from "date-fns";
-import { isAddonDue } from "./addon";
+import { isAddon2Due, isAddonDue } from "./addon";
 import { publishHaMqttTaskEvent, scheduleHaMqttSync } from "./ha-mqtt";
 import { prisma } from "./prisma";
 import { addTaskToDate, dismissAssignmentNotify, holdAssignmentOnDate } from "./scheduler";
@@ -30,12 +30,14 @@ export async function completeAssignment(opts: {
   });
 
   const task = await prisma.task.findUnique({ where: { id: assignment.taskId } });
-  const mopped = task ? isAddonDue(task, opts.completedAt) : false;
+  const stacked = task ? isAddon2Due(task, opts.completedAt) : false;
+  const mopped = stacked || (task ? isAddonDue(task, opts.completedAt) : false);
   await prisma.task.update({
     where: { id: assignment.taskId },
     data: {
       lastDoneAt: opts.completedAt,
       ...(mopped && { addonLastDoneAt: opts.completedAt }),
+      ...(stacked && { addon2LastDoneAt: opts.completedAt }),
     },
   });
 
@@ -110,11 +112,14 @@ export async function uncompleteFromLog(logId: string) {
     const task = await prisma.task.findUnique({ where: { id: log.taskId } });
     const mopped = task?.addonLastDoneAt
       && Math.abs(task.addonLastDoneAt.getTime() - log.completedAt.getTime()) < 5000;
+    const stacked = task?.addon2LastDoneAt
+      && Math.abs(task.addon2LastDoneAt.getTime() - log.completedAt.getTime()) < 5000;
     await prisma.task.update({
       where: { id: log.taskId },
       data: {
         lastDoneAt: previous?.completedAt ?? null,
         ...(mopped && { addonLastDoneAt: null }),
+        ...(stacked && { addon2LastDoneAt: null }),
       },
     });
   }

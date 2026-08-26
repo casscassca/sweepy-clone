@@ -3,7 +3,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { pgPool } from "./pg-pool";
 
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient; prismaRev?: number };
-const PRISMA_REV = 22;
+const PRISMA_REV = 23;
 
 function createClient() {
   const url = process.env.DATABASE_URL;

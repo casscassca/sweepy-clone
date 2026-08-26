@@ -23,6 +23,10 @@ export type TaskFormTask = {
   addonFrequencyDays?: number;
   addonPoints?: number;
   addonLastDoneAt?: string | null;
+  addon2Name?: string;
+  addon2FrequencyDays?: number;
+  addon2Points?: number;
+  addon2LastDoneAt?: string | null;
   assignableUsers: { user: TaskFormUser }[];
 };
 
@@ -50,6 +54,16 @@ export function parseTaskForm(form: HTMLFormElement) {
   const addonLast = addonOn && addonName && addonFrequencyDays
     ? lastDoneAtFromRatio(Number.isFinite(addonDirtRatio) ? addonDirtRatio : 0, addonFrequencyDays)
     : null;
+  const addon2On = addonOn && ((form.elements.namedItem("addon2On") as HTMLInputElement)?.checked ?? false);
+  const addon2Name = addon2On ? ((form.elements.namedItem("addon2Name") as HTMLInputElement)?.value ?? "").trim() : "";
+  const addon2FreqCount = Number((form.elements.namedItem("addon2FreqCount") as HTMLInputElement)?.value);
+  const addon2FreqUnit = ((form.elements.namedItem("addon2FreqUnit") as HTMLSelectElement)?.value || "month") as FreqUnit;
+  const addon2FrequencyDays = addon2On && addon2Name ? daysForFrequency(addon2FreqCount, addon2FreqUnit) : 0;
+  const addon2Points = addon2On ? Math.min(2, Math.max(1, Number((form.elements.namedItem("addon2Points") as HTMLSelectElement)?.value) || 1)) : 1;
+  const addon2DirtRatio = Number((form.elements.namedItem("addon2DirtRatio") as HTMLInputElement)?.value);
+  const addon2Last = addon2On && addon2Name && addon2FrequencyDays
+    ? lastDoneAtFromRatio(Number.isFinite(addon2DirtRatio) ? addon2DirtRatio : 0, addon2FrequencyDays)
+    : null;
   return {
     name,
     difficulty,
@@ -64,6 +78,10 @@ export function parseTaskForm(form: HTMLFormElement) {
     addonFrequencyDays,
     addonPoints,
     addonLastDoneAt: addonLast ? addonLast.toISOString() : null,
+    addon2Name,
+    addon2FrequencyDays,
+    addon2Points,
+    addon2LastDoneAt: addon2Last ? addon2Last.toISOString() : null,
   };
 }
 
@@ -92,8 +110,17 @@ export default function TaskFormFields({
   const [addonName, setAddonName] = useState(task?.addonName ?? "");
   const [addonPoints, setAddonPoints] = useState(task?.addonPoints && task.addonPoints > 0 ? task.addonPoints : 1);
   const addonFrequencyDays = useMemo(() => daysForFrequency(addonFreqCount, addonFreqUnit), [addonFreqCount, addonFreqUnit]);
+  const [addon2On, setAddon2On] = useState(Boolean(task?.addon2Name?.trim()));
+  const initialAddon2Freq = splitFrequency(task?.addon2FrequencyDays && task.addon2FrequencyDays > 0 ? task.addon2FrequencyDays : 30);
+  const [addon2FreqCount, setAddon2FreqCount] = useState(initialAddon2Freq.count);
+  const [addon2FreqUnit, setAddon2FreqUnit] = useState<FreqUnit>(initialAddon2Freq.unit);
+  const [addon2Name, setAddon2Name] = useState(task?.addon2Name ?? "");
+  const [addon2Points, setAddon2Points] = useState(task?.addon2Points && task.addon2Points > 0 ? task.addon2Points : 1);
+  const addon2FrequencyDays = useMemo(() => daysForFrequency(addon2FreqCount, addon2FreqUnit), [addon2FreqCount, addon2FreqUnit]);
   const comboName = `${taskName.trim() || "This"} and ${addonName.trim() || "…"}`;
   const comboPts = Math.min(3, difficulty + addonPoints);
+  const stackName = `${comboName} and ${addon2Name.trim() || "…"}`;
+  const stackPts = Math.min(3, difficulty + addonPoints + addon2Points);
 
   return (
     <>
@@ -157,7 +184,10 @@ export default function TaskFormFields({
       </div>
       <DirtSlider key={frequencyDays} lastDoneAt={task?.lastDoneAt} frequencyDays={frequencyDays} asOf={dirtAsOf} />
       <label className="flex items-start gap-2.5 text-sm cursor-pointer">
-        <input type="checkbox" name="addonOn" checked={addonOn} onChange={(e) => setAddonOn(e.target.checked)} className="mt-0.5" />
+        <input type="checkbox" name="addonOn" checked={addonOn} onChange={(e) => {
+          setAddonOn(e.target.checked);
+          if (!e.target.checked) setAddon2On(false);
+        }} className="mt-0.5" />
         <span>
           Also when due
           <span className="block text-xs font-normal mt-0.5" style={{ color: "var(--text3)" }}>
@@ -222,6 +252,72 @@ export default function TaskFormFields({
             inputId="addon-dirt-ratio"
             label={`How long since ${addonName.trim() || "the add-on"}?`}
           />
+          <label className="flex items-start gap-2.5 text-sm cursor-pointer">
+            <input type="checkbox" name="addon2On" checked={addon2On} onChange={(e) => setAddon2On(e.target.checked)} className="mt-0.5" />
+            <span>
+              Also when due
+              <span className="block text-xs font-normal mt-0.5" style={{ color: "var(--text3)" }}>
+                Upgrade the add-on — {comboName} becomes {stackName}
+              </span>
+            </span>
+          </label>
+          {addon2On && (
+            <div
+              className="rounded-xl p-3 space-y-3"
+              style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+            >
+              <div>
+                <label className="block text-xs mb-1.5" style={{ color: "var(--text3)" }}>Add-on name</label>
+                <input name="addon2Name" value={addon2Name} onChange={(e) => setAddon2Name(e.target.value)} className="w-full" placeholder="e.g. replace filter" />
+              </div>
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <label className="block text-xs mb-1.5" style={{ color: "var(--text3)" }}>Every</label>
+                  <div className="flex gap-2">
+                    <div className="w-16 shrink-0">
+                      <input
+                        name="addon2FreqCount"
+                        type="number"
+                        min={1}
+                        max={99}
+                        value={addon2FreqCount}
+                        onChange={(e) => setAddon2FreqCount(Math.max(1, Math.min(99, Number(e.target.value) || 1)))}
+                      />
+                    </div>
+                    <select
+                      name="addon2FreqUnit"
+                      value={addon2FreqUnit}
+                      onChange={(e) => setAddon2FreqUnit(e.target.value as FreqUnit)}
+                      className="flex-1 min-w-0"
+                    >
+                      {FREQ_UNITS.map((u) => (
+                        <option key={u.value} value={u.value}>{addon2FreqCount === 1 ? u.singular : u.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div className="w-24 shrink-0">
+                  <label className="block text-xs mb-1.5" style={{ color: "var(--text3)" }}>Extra</label>
+                  <select name="addon2Points" value={addon2Points} onChange={(e) => setAddon2Points(Number(e.target.value))} className="w-full">
+                    <option value={1}>+1 pt</option>
+                    <option value={2}>+2 pts</option>
+                  </select>
+                </div>
+              </div>
+              <p className="text-xs leading-relaxed" style={{ color: "var(--text2)" }}>
+                When {addon2Name.trim() || "this add-on"} is due: <span className="font-medium" style={{ color: "var(--text)" }}>{stackName} · {stackPts} pts</span>
+              </p>
+              <DirtSlider
+                key={addon2FrequencyDays}
+                lastDoneAt={task?.addon2LastDoneAt ?? task?.addonLastDoneAt ?? task?.lastDoneAt ?? null}
+                frequencyDays={addon2FrequencyDays}
+                asOf={dirtAsOf}
+                name="addon2DirtRatio"
+                inputId="addon2-dirt-ratio"
+                label={`How long since ${addon2Name.trim() || "this add-on"}?`}
+              />
+            </div>
+          )}
         </div>
       )}
       <div>

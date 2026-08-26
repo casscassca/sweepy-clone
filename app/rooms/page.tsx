@@ -26,6 +26,10 @@ type Task = {
   addonFrequencyDays?: number;
   addonPoints?: number;
   addonLastDoneAt?: string | null;
+  addon2Name?: string;
+  addon2FrequencyDays?: number;
+  addon2Points?: number;
+  addon2LastDoneAt?: string | null;
   assignableUsers: { user: User }[];
 };
 type Room = { id: string; name: string; icon: string; tasks: Task[] };
