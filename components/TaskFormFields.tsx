@@ -2,6 +2,7 @@
 import { useMemo, useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import DirtSlider from "@/components/DirtSlider";
+import { comboTaskName, stackedTaskName } from "@/lib/addon";
 import { lastDoneAtFromRatio } from "@/lib/dirtiness";
 import { daysForFrequency, FREQ_UNITS, splitFrequency, type FreqUnit } from "@/lib/frequency";
 import { allowedMask, DAY_SHORT, encodeAllowedDays } from "@/lib/allowed-days";
@@ -132,9 +133,9 @@ export default function TaskFormFields({
     typeof task?.addon2Points === "number" ? Math.min(2, Math.max(0, task.addon2Points)) : 1,
   );
   const addon2FrequencyDays = useMemo(() => daysForFrequency(addon2FreqCount, addon2FreqUnit), [addon2FreqCount, addon2FreqUnit]);
-  const comboName = `${taskName.trim() || "This"} and ${addonName.trim() || "…"}`;
+  const comboName = comboTaskName(taskName.trim() || "This", addonName.trim() || "…");
   const comboPts = Math.min(3, difficulty + addonPoints);
-  const stackName = `${comboName} and ${addon2Name.trim() || "…"}`;
+  const stackName = stackedTaskName(taskName.trim() || "This", addonName.trim() || "…", addon2Name.trim() || "…");
   const stackPts = Math.min(3, difficulty + addonPoints + addon2Points);
 
   return (

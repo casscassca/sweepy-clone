@@ -42,7 +42,7 @@ describe("nested add-on", () => {
   };
 
   it("names the full stack when the second add-on is due", () => {
-    assert.equal(displayTaskName(food, asOf), "Reset wet food and clean filter and replace filter");
+    assert.equal(displayTaskName(food, asOf), "Reset wet food, clean filter, and replace filter");
     assert.equal(isTaskEligible(food, asOf), true);
   });
 

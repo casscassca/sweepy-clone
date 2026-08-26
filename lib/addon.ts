@@ -74,10 +74,18 @@ function addon2Label(task: AddonFields) {
   return (task.addon2Name ?? "").trim();
 }
 
+export function comboTaskName(name: string, addon: string) {
+  return `${name} and ${addon}`;
+}
+
+export function stackedTaskName(name: string, addon: string, addon2: string) {
+  return `${name}, ${addon}, and ${addon2}`;
+}
+
 export function displayTaskName(task: AddonFields, asOf: Date = new Date()) {
   const name = task.name ?? "";
-  if (isAddon2Due(task, asOf)) return `${name} and ${addonLabel(task)} and ${addon2Label(task)}`;
-  if (isAddonDue(task, asOf)) return `${name} and ${addonLabel(task)}`;
+  if (isAddon2Due(task, asOf)) return stackedTaskName(name, addonLabel(task), addon2Label(task));
+  if (isAddonDue(task, asOf)) return comboTaskName(name, addonLabel(task));
   return name;
 }
 
@@ -93,9 +101,9 @@ function completedWithAddon(task: AddonFields, completedAt?: Date | string | nul
 
 export function assignmentLabel(task: AddonFields, completedAt?: Date | string | null) {
   if (completedWithAddon2(task, completedAt)) {
-    return `${task.name ?? ""} and ${addonLabel(task)} and ${addon2Label(task)}`;
+    return stackedTaskName(task.name ?? "", addonLabel(task), addon2Label(task));
   }
-  if (completedWithAddon(task, completedAt)) return `${task.name ?? ""} and ${addonLabel(task)}`;
+  if (completedWithAddon(task, completedAt)) return comboTaskName(task.name ?? "", addonLabel(task));
   return displayTaskName(task);
 }
 
