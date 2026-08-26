@@ -270,21 +270,24 @@ export default function RoomsPage() {
   async function saveTask(e: React.FormEvent, roomId: string) {
     e.preventDefault();
     const body = parseTaskForm(e.target as HTMLFormElement);
+    const destRoomId = body.roomId ?? roomId;
 
     if (editingTask) {
       await fetch(`/api/tasks/${editingTask.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ ...body, roomId: destRoomId }),
       });
+      if (destRoomId) setExpanded((ex) => ({ ...ex, [destRoomId]: true }));
       setEditingTask(null);
     } else {
       await fetch("/api/tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...body, roomId }),
+        body: JSON.stringify({ ...body, roomId: destRoomId }),
       });
       setTaskForms((f) => ({ ...f, [roomId]: false }));
+      if (destRoomId) setExpanded((ex) => ({ ...ex, [destRoomId]: true }));
     }
     invalidateLists();
     load();
@@ -535,7 +538,7 @@ export default function RoomsPage() {
                   <div key={task.id} style={{ borderBottom: "1px solid var(--border)" }}>
                     {editingTask?.id === task.id ? (
                       <form onSubmit={(e) => saveTask(e, room.id)} className="p-4 space-y-3">
-                        <TaskFormFields key={task.id} task={task} users={users} dirtAsOf={dirtAsOf} />
+                        <TaskFormFields key={task.id} task={{ ...task, roomId: room.id }} users={users} rooms={rooms} dirtAsOf={dirtAsOf} />
                         <div className="flex gap-2">
                           <button type="submit" className="px-3 py-1.5 rounded-lg text-sm font-medium text-white" style={{ background: "var(--accent)" }}>Save</button>
                           <button type="button" onClick={() => setEditingTask(null)} className="px-3 py-1.5 rounded-lg text-sm" style={{ color: "var(--text3)" }}>Cancel</button>
@@ -562,7 +565,7 @@ export default function RoomsPage() {
 
                 {taskForms[room.id] ? (
                   <form onSubmit={(e) => saveTask(e, room.id)} className="p-4 space-y-3">
-                    <TaskFormFields key={`new-${room.id}`} users={users} dirtAsOf={dirtAsOf} />
+                    <TaskFormFields key={`new-${room.id}`} users={users} rooms={rooms} defaultRoomId={room.id} dirtAsOf={dirtAsOf} />
                     <div className="flex gap-2">
                       <button type="submit" className="px-3 py-1.5 rounded-lg text-sm font-medium text-white" style={{ background: "var(--accent)" }}>Add Task</button>
                       <button type="button" onClick={() => setTaskForms((f) => ({ ...f, [room.id]: false }))} className="px-3 py-1.5 rounded-lg text-sm" style={{ color: "var(--text3)" }}>Cancel</button>

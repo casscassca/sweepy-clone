@@ -11,7 +11,7 @@ export async function POST(req: Request) {
   const task = await prisma.task.create({
     data: {
       name,
-      roomId,
+      roomId: roomId || null,
       difficulty: Number(difficulty),
       frequencyDays: Number(frequencyDays),
       allowedDays: normalizeAllowedDays(allowedDays),

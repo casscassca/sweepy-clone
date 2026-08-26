@@ -1,14 +1,16 @@
 "use client";
-import TaskFormFields, { parseTaskForm, type TaskFormTask, type TaskFormUser } from "@/components/TaskFormFields";
+import TaskFormFields, { parseTaskForm, type TaskFormRoom, type TaskFormTask, type TaskFormUser } from "@/components/TaskFormFields";
 
 export default function TaskEditModal({
   task,
   users,
+  rooms,
   onClose,
   onSaved,
 }: {
   task: TaskFormTask;
   users: TaskFormUser[];
+  rooms?: TaskFormRoom[];
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -38,7 +40,7 @@ export default function TaskEditModal({
       >
         <h2 id="edit-task-title" className="font-semibold text-lg mb-4">Edit task</h2>
         <form onSubmit={save} className="space-y-3">
-          <TaskFormFields key={task.id} task={task} users={users} />
+          <TaskFormFields key={task.id} task={task} users={users} rooms={rooms} />
           <div className="flex gap-2 pt-2">
             <button type="submit" className="px-4 py-2 rounded-xl text-sm font-medium text-white" style={{ background: "var(--accent)" }}>
               Save

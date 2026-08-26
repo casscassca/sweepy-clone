@@ -8,6 +8,7 @@ import { allowedMask, DAY_SHORT, encodeAllowedDays } from "@/lib/allowed-days";
 
 export { formatFrequency } from "@/lib/frequency";
 
+export type TaskFormRoom = { id: string; name: string; icon: string };
 export type TaskFormUser = { id: string; name: string; color: string };
 export type TaskFormTask = {
   id: string;
@@ -19,6 +20,7 @@ export type TaskFormTask = {
   important?: boolean;
   dueOnly?: boolean;
   notes?: string;
+  roomId?: string | null;
   addonName?: string;
   addonFrequencyDays?: number;
   addonPoints?: number;
@@ -44,6 +46,8 @@ export function parseTaskForm(form: HTMLFormElement) {
   const important = (form.elements.namedItem("important") as HTMLInputElement)?.checked ?? false;
   const dueOnly = (form.elements.namedItem("dueOnly") as HTMLInputElement)?.checked ?? false;
   const notes = ((form.elements.namedItem("notes") as HTMLTextAreaElement)?.value ?? "").trim();
+  const roomField = form.elements.namedItem("roomId") as HTMLSelectElement | null;
+  const roomId = roomField ? (roomField.value || null) : undefined;
   const addonOn = (form.elements.namedItem("addonOn") as HTMLInputElement)?.checked ?? false;
   const addonName = addonOn ? ((form.elements.namedItem("addonName") as HTMLInputElement)?.value ?? "").trim() : "";
   const addonFreqCount = Number((form.elements.namedItem("addonFreqCount") as HTMLInputElement)?.value);
@@ -76,6 +80,7 @@ export function parseTaskForm(form: HTMLFormElement) {
     important,
     dueOnly,
     notes,
+    ...(roomId !== undefined ? { roomId } : {}),
     addonName,
     addonFrequencyDays,
     addonPoints,
@@ -90,10 +95,14 @@ export function parseTaskForm(form: HTMLFormElement) {
 export default function TaskFormFields({
   task,
   users,
+  rooms,
+  defaultRoomId,
   dirtAsOf,
 }: {
   task?: TaskFormTask;
   users: TaskFormUser[];
+  rooms?: TaskFormRoom[];
+  defaultRoomId?: string | null;
   dirtAsOf?: Date;
 }) {
   const [allowed, setAllowed] = useState(() => allowedMask(task?.allowedDays));
@@ -134,6 +143,16 @@ export default function TaskFormFields({
         <label className="block text-xs mb-1.5" style={{ color: "var(--text3)" }}>Task name</label>
         <input name="name" required value={taskName} onChange={(e) => setTaskName(e.target.value)} className="w-full" placeholder="e.g. Vacuum living room" />
       </div>
+      {rooms && rooms.length > 0 && (
+        <div>
+          <label className="block text-xs mb-1.5" style={{ color: "var(--text3)" }}>Room</label>
+          <select name="roomId" defaultValue={task?.roomId ?? defaultRoomId ?? rooms[0]?.id ?? ""} className="w-full">
+            {rooms.map((room) => (
+              <option key={room.id} value={room.id}>{room.icon} {room.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
       <label className="flex items-start gap-2.5 text-sm cursor-pointer">
         <input type="checkbox" name="important" defaultChecked={task?.important ?? false} className="mt-0.5" />
         <span>

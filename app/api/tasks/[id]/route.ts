@@ -26,7 +26,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     where: { id },
     data: {
       ...(name !== undefined && { name }),
-      ...(roomId !== undefined && { roomId }),
+      ...(roomId !== undefined && { roomId: roomId || null }),
       ...(difficulty !== undefined && { difficulty: Number(difficulty) }),
       ...(frequencyDays !== undefined && { frequencyDays: Number(frequencyDays) }),
       ...(allowedDays !== undefined && { allowedDays: normalizeAllowedDays(allowedDays) }),

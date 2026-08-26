@@ -16,12 +16,12 @@ import AddToDaySheet from "@/components/AddToDaySheet";
 import CompleteAsMenu from "@/components/CompleteAsMenu";
 import PersonMenu from "@/components/PersonMenu";
 import TaskNote from "@/components/TaskNote";
-import type { TaskFormTask } from "@/components/TaskFormFields";
+import type { TaskFormRoom, TaskFormTask } from "@/components/TaskFormFields";
 import { useHideDone } from "@/lib/hide-done";
 import { invalidateLists, loadJson } from "@/lib/api-cache";
 
 type User = { id: string; name: string; color: string };
-type Task = TaskFormTask & { room: { name: string } | null; oneOff?: boolean };
+type Task = TaskFormTask & { room: { id: string; name: string } | null; oneOff?: boolean; roomId?: string | null };
 type Assignment = { id: string; userId: string; date: string; order: number; completedAt: string | null; pinned?: boolean; task: Task; user: User };
 
 const DIFF_COLOR = ["", "#a78bfa", "#fb923c", "#f87171"];
@@ -241,6 +241,7 @@ export default function UpcomingPage() {
   const [loading, setLoading] = useState(true);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [catalogRooms, setCatalogRooms] = useState<TaskFormRoom[]>([]);
   const [addingDate, setAddingDate] = useState<string | null>(null);
   const [hideDone, setHideDone] = useHideDone();
   const [dirtAsOf, setDirtAsOf] = useState<Date | undefined>();
@@ -251,6 +252,9 @@ export default function UpcomingPage() {
         setAssignments(Array.isArray(upcomingRes.assignments) ? upcomingRes.assignments : []);
       }),
       loadJson<User[]>("/api/users", [], (usersRes) => setUsers(Array.isArray(usersRes) ? usersRes : [])),
+      loadJson<{ id: string; name: string; icon: string }[]>("/api/rooms", [], (r) => {
+        setCatalogRooms((Array.isArray(r) ? r : []).map((room) => ({ id: room.id, name: room.name, icon: room.icon })));
+      }),
       loadJson<{ user?: User }>("/api/auth/me", {}, (meRes) => setMe(meRes.user ?? null)),
       loadJson<{ dirtAsOf?: string } | null>("/api/settings", null, (settings) => {
         setDirtAsOf(typeof settings?.dirtAsOf === "string" ? new Date(`${settings.dirtAsOf}T12:00:00`) : undefined);
@@ -472,8 +476,9 @@ export default function UpcomingPage() {
 
       {editingTask && (
         <TaskEditModal
-          task={editingTask}
+          task={{ ...editingTask, roomId: editingTask.roomId ?? editingTask.room?.id ?? null }}
           users={users}
+          rooms={catalogRooms}
           onClose={() => setEditingTask(null)}
           onSaved={() => { setEditingTask(null); load(); }}
         />
