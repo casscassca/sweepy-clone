@@ -29,12 +29,14 @@ services:
     env_file:
       - path: .env
         required: true
+    user: "1000:1000"
     environment:
       TZ: ${TZ:-America/Chicago}
       RCLONE_REMOTE: gdrive:backups/sweepy
       PGSSLMODE: require
+      RCLONE_CONFIG: /config/rclone.conf
     volumes:
-      - ${HOME}/.config/rclone:/root/.config/rclone
+      - ${HOME}/.config/rclone:/config
     restart: unless-stopped
 
 volumes:
