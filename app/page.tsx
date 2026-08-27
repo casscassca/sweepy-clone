@@ -15,7 +15,7 @@ import { assignmentDifficulty, assignmentLabel } from "@/lib/addon";
 import { useHideDone } from "@/lib/hide-done";
 import { invalidateLists, loadJson } from "@/lib/api-cache";
 
-type User = { id: string; name: string; color: string; dailyCapacity: number; dailyTaskLimit?: number };
+type User = { id: string; name: string; color: string; dailyTaskLimit?: number };
 type Task = { id: string; name: string; difficulty: number; oneOff?: boolean; important?: boolean; notes?: string; addonName?: string; addonFrequencyDays?: number; addonPoints?: number; addonLastDoneAt?: string | null; addon2Name?: string; addon2FrequencyDays?: number; addon2Points?: number; addon2LastDoneAt?: string | null; lastDoneAt?: string | null; frequencyDays?: number; dueOnly?: boolean; room: { name: string } | null };
 type Assignment = { id: string; userId: string; order: number; completedAt: string | null; pinned?: boolean; task: Task; user: User };
 
@@ -315,7 +315,7 @@ export default function TodayPage() {
                   <span className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0" style={{ background: user.color + "22", color: user.color }}>{user.name[0]}</span>
                   <span className="font-medium">{user.name}</span>
                   <span className="text-xs ml-auto" style={{ color: "var(--text3)" }}>
-                    {all.filter((i) => i.completedAt).length}/{all.length} · {all.reduce((s, i) => s + assignmentDifficulty(i.task, i.completedAt), 0)}/{user.dailyCapacity} pts
+                    {all.filter((i) => i.completedAt).length}/{all.length}
                   </span>
                 </div>
                 <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
