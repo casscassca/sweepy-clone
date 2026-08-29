@@ -16,6 +16,12 @@ describe("capacity overrides", () => {
     assert.equal(canSpillForCapacity(pin), false);
   });
 
+  it("counts a one-off toward the cap and will not spill it", () => {
+    const extra = chore({ oneOff: true, held: true });
+    assert.equal(mayExceedCapacity(extra), true);
+    assert.equal(canSpillForCapacity(extra), false);
+  });
+
   it("lets a dragged chore sit over the cap", () => {
     const moved = chore({ held: true });
     assert.equal(mayExceedCapacity(moved), true);

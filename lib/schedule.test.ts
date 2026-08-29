@@ -10,13 +10,24 @@ const WED = "3";
 const lastWed = new Date("2026-08-12T12:00:00-05:00");
 
 describe("capacity load", () => {
-  it("includes completed assignments and ignores one-offs", () => {
+  it("counts completed work, one-offs, and regulars toward the cap", () => {
     const rows = [
-      { completedAt: new Date("2026-08-29T12:00:00-05:00"), task: { oneOff: false }, points: 3 },
-      { completedAt: null, task: { oneOff: false }, points: 2 },
-      { completedAt: null, task: { oneOff: true }, points: 3 },
+      { completedAt: new Date("2026-08-29T12:00:00-05:00"), task: { oneOff: false }, points: 1 },
+      { completedAt: null, task: { oneOff: false }, points: 1 },
+      { completedAt: null, task: { oneOff: true }, points: 1 },
     ];
-    assert.deepEqual(capacityLoad(rows, (row) => row.points), { pts: 5, tasks: 2 });
+    assert.deepEqual(capacityLoad(rows, (row) => row.points), { pts: 3, tasks: 3 });
+  });
+
+  it("leaves four weekend seats after a pin and a one-off", () => {
+    const rem = weekendFillRemaining(
+      "2026-08-29",
+      { pts: 16, tasks: 6 },
+      { pts: 4, tasks: 2 },
+      { pts: 0, tasks: 0 },
+    );
+    assert.equal(rem.tasks, 4);
+    assert.equal(rem.pts, 12);
   });
 });
 

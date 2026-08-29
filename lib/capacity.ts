@@ -70,14 +70,13 @@ export function personCapOnDate(person: PersonCaps, date: Date | string) {
   };
 }
 
-export function capacityLoad<T extends { completedAt: Date | null; task: { oneOff: boolean } }>(
+export function capacityLoad<T>(
   rows: T[],
   pointsFor: (row: T) => number,
 ) {
-  const catalog = rows.filter((row) => !row.task.oneOff);
   return {
-    pts: catalog.reduce((sum, row) => sum + pointsFor(row), 0),
-    tasks: catalog.length,
+    pts: rows.reduce((sum, row) => sum + pointsFor(row), 0),
+    tasks: rows.length,
   };
 }
 

@@ -5,7 +5,7 @@ export type CapacityRow = {
   task: { oneOff: boolean; important?: boolean };
 };
 
-/** Pins count toward the cap. These are the only rows allowed to sit over it. */
+/** One-offs, dragged chores, and exclusive important chores may sit over the cap. */
 export function mayExceedCapacity(row: CapacityRow) {
   if (row.task.oneOff) return true;
   if (row.held && !row.pinned) return true;

@@ -117,7 +117,7 @@ const TASK_LOAD_SELECT = {
 
 async function catalogUseOn(date: string, userId: string) {
   const rows = await prisma.dailyAssignment.findMany({
-    where: { date, userId, parked: false, task: { oneOff: false } },
+    where: { date, userId, parked: false },
     include: { task: { select: TASK_LOAD_SELECT } },
   });
   const asOf = new Date(`${date}T12:00:00`);
@@ -167,8 +167,9 @@ async function handOffToSomeoneWithRoom(opts: {
 }
 
 /**
- * Pins count toward the cap. Only dragged chores, one-offs, and exclusive
- * important chores may sit over it; everything else overflows.
+ * Every row on the day counts, including pins, one-offs, and completed work.
+ * Dragged chores, one-offs, and exclusive important chores may sit over the
+ * cap; everything else overflows.
  */
 export async function enforceCapacity(fromDate = todayStr(), horizon = 21) {
   const users = await prisma.user.findMany({
@@ -227,9 +228,9 @@ export async function enforceCapacity(fromDate = todayStr(), horizon = 21) {
         limitTasks = pot.tasks;
       } else {
         const dayCap = person ? personCapOnDate(person, date) : { pts: 6, tasks: 6 };
-        const load = capacityLoad(items, (a) => displayTaskDifficulty(a.task, asOf));
-        usedPts = load.pts;
-        usedTasks = load.tasks;
+        const used = await catalogUseOn(date, userId);
+        usedPts = used.pts;
+        usedTasks = used.tasks;
         limitPts = dayCap.pts;
         limitTasks = dayCap.tasks;
       }
@@ -1050,22 +1051,9 @@ export async function fillUserTodayAndNotify(userId: string) {
   const vac = await loadVacationContext(date);
   if (personAway(user, vac.house, date)) return 0;
 
-  const open = await prisma.dailyAssignment.findMany({
-    where: { userId, date, completedAt: null, parked: false },
-    include: { task: { select: { difficulty: true, lastDoneAt: true, frequencyDays: true, dueOnly: true, addonName: true, addonFrequencyDays: true, addonPoints: true, addonLastDoneAt: true, addon2Name: true, addon2FrequencyDays: true, addon2Points: true, addon2LastDoneAt: true } } },
-  });
-  const asOf = new Date(`${date}T12:00:00`);
-  const points = open.reduce((s, a) => s + displayTaskDifficulty(a.task, asOf), 0);
-  let pointsLeft = 0;
-  if (personWeekendOn(user) && isWeekendDate(date)) {
-    const rem = await weekendRemaining(date, user.id, user);
-    if (rem.tasks < 1 || rem.pts < 1) return 0;
-    pointsLeft = rem.pts;
-  } else {
-    const cap = personCapOnDate(user, date);
-    if (open.length >= cap.tasks || points >= cap.pts) return 0;
-    pointsLeft = cap.pts - points;
-  }
+  const rem = await remainingOnDate(date, user.id, user, { pts: 0, tasks: 0 });
+  if (rem.tasks < 1 || rem.pts < 1) return 0;
+  const pointsLeft = rem.pts;
 
   const addedId = await assignNextForUser(user.id, date, pointsLeft);
   if (!addedId) return 0;
