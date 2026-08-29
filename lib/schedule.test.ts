@@ -1,13 +1,31 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { isAllowedOnDate, nextAllowedOnOrAfter } from "./allowed-days";
-import { overflowNextDate } from "./capacity";
+import { overflowNextDate, weekendFillRemaining } from "./capacity";
 import { cleanlinessPct, dirtWord, dirtinessRatio, dueDayStr, dueOnAllowedDay, isDirtyEnough } from "./dirtiness";
 import { daysForFrequency } from "./frequency";
 import { personAway, returnDay } from "./vacation";
 
 const WED = "3";
 const lastWed = new Date("2026-08-12T12:00:00-05:00");
+
+describe("weekend fill remaining", () => {
+  const pot = { pts: 16, tasks: 6 };
+  const sat = { pts: 4, tasks: 1 };
+  const sun = { pts: 3, tasks: 1 };
+
+  it("lets Saturday use the full pot, ignoring Sunday seats", () => {
+    const rem = weekendFillRemaining("2026-08-29", pot, sat, sun);
+    assert.equal(rem.tasks, 5);
+    assert.equal(rem.pts, 12);
+  });
+
+  it("counts Saturday plus Sunday once Sunday is being filled", () => {
+    const rem = weekendFillRemaining("2026-08-30", pot, sat, sun);
+    assert.equal(rem.tasks, 4);
+    assert.equal(rem.pts, 9);
+  });
+});
 
 describe("weekly Wednesday-only", () => {
   it("lands every Wednesday and never Thursday", () => {

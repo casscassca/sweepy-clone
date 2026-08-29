@@ -78,6 +78,20 @@ export function weekendPair(dateStr: string) {
   return null;
 }
 
+export function weekendFillRemaining(
+  date: string,
+  pot: { pts: number; tasks: number },
+  sat: { pts: number; tasks: number },
+  sun: { pts: number; tasks: number },
+) {
+  const pair = weekendPair(date);
+  if (!pair) return { pts: 0, tasks: 0 };
+  if (date === pair.sat) {
+    return { pts: pot.pts - sat.pts, tasks: pot.tasks - sat.tasks };
+  }
+  return { pts: pot.pts - sat.pts - sun.pts, tasks: pot.tasks - sat.tasks - sun.tasks };
+}
+
 export function overflowNextDate(dateStr: string, weekendShare: boolean) {
   const d = parseISO(`${dateStr}T12:00:00`);
   if (weekendShare && isWeekendDate(d)) {
