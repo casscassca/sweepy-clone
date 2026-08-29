@@ -1,13 +1,24 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { isAllowedOnDate, nextAllowedOnOrAfter } from "./allowed-days";
-import { overflowNextDate, weekendFillRemaining } from "./capacity";
+import { capacityLoad, overflowNextDate, weekendFillRemaining } from "./capacity";
 import { cleanlinessPct, dirtWord, dirtinessRatio, dueDayStr, dueOnAllowedDay, isDirtyEnough } from "./dirtiness";
 import { daysForFrequency } from "./frequency";
 import { personAway, returnDay } from "./vacation";
 
 const WED = "3";
 const lastWed = new Date("2026-08-12T12:00:00-05:00");
+
+describe("capacity load", () => {
+  it("ignores completed and one-off assignments", () => {
+    const rows = [
+      { completedAt: new Date("2026-08-29T12:00:00-05:00"), task: { oneOff: false }, points: 3 },
+      { completedAt: null, task: { oneOff: false }, points: 2 },
+      { completedAt: null, task: { oneOff: true }, points: 3 },
+    ];
+    assert.deepEqual(capacityLoad(rows, (row) => row.points), { pts: 2, tasks: 1 });
+  });
+});
 
 describe("weekend fill remaining", () => {
   const pot = { pts: 16, tasks: 6 };

@@ -5,6 +5,7 @@ import { displayTaskDifficulty, displayTaskName, isTaskEligible } from "./addon"
 import { dirtinessRatio, dueOnAllowedDay } from "./dirtiness";
 import { calendarDayStr } from "./dates";
 import {
+  capacityLoad,
   isWeekendDate,
   overflowNextDate,
   personCapOnDate,
@@ -116,14 +117,11 @@ const TASK_LOAD_SELECT = {
 
 async function catalogUseOn(date: string, userId: string) {
   const rows = await prisma.dailyAssignment.findMany({
-    where: { date, userId, parked: false, task: { oneOff: false } },
+    where: { date, userId, completedAt: null, parked: false, task: { oneOff: false } },
     include: { task: { select: TASK_LOAD_SELECT } },
   });
   const asOf = new Date(`${date}T12:00:00`);
-  return {
-    pts: rows.reduce((s, a) => s + displayTaskDifficulty(a.task, asOf), 0),
-    tasks: rows.length,
-  };
+  return capacityLoad(rows, (a) => displayTaskDifficulty(a.task, asOf));
 }
 
 async function weekendRemaining(date: string, userId: string, person: PersonCaps) {
@@ -229,9 +227,9 @@ export async function enforceCapacity(fromDate = todayStr(), horizon = 21) {
         limitTasks = pot.tasks;
       } else {
         const dayCap = person ? personCapOnDate(person, date) : { pts: 6, tasks: 6 };
-        const catalog = items.filter((a) => !a.task.oneOff);
-        usedPts = catalog.reduce((s, a) => s + displayTaskDifficulty(a.task, asOf), 0);
-        usedTasks = catalog.length;
+        const load = capacityLoad(items, (a) => displayTaskDifficulty(a.task, asOf));
+        usedPts = load.pts;
+        usedTasks = load.tasks;
         limitPts = dayCap.pts;
         limitTasks = dayCap.tasks;
       }
@@ -716,7 +714,7 @@ export async function runDailyAssignment(
   const orderCounters = new Map<string, number>(users.map((u) => [u.id, 0]));
   for (const a of existing) {
     const owner = users.find((u) => u.id === a.userId);
-    if (!(owner && personWeekendOn(owner) && isWeekendDate(date))) {
+    if (!a.completedAt && !(owner && personWeekendOn(owner) && isWeekendDate(date))) {
       capacityLeft.set(a.userId, (capacityLeft.get(a.userId) ?? 0) - displayTaskDifficulty(a.task, targetDate));
       slotsLeft.set(a.userId, (slotsLeft.get(a.userId) ?? 0) - 1);
     }

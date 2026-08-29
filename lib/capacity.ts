@@ -70,6 +70,17 @@ export function personCapOnDate(person: PersonCaps, date: Date | string) {
   };
 }
 
+export function capacityLoad<T extends { completedAt: Date | null; task: { oneOff: boolean } }>(
+  rows: T[],
+  pointsFor: (row: T) => number,
+) {
+  const catalog = rows.filter((row) => row.completedAt === null && !row.task.oneOff);
+  return {
+    pts: catalog.reduce((sum, row) => sum + pointsFor(row), 0),
+    tasks: catalog.length,
+  };
+}
+
 export function weekendPair(dateStr: string) {
   const d = parseISO(`${dateStr}T12:00:00`);
   const dow = getDay(d);
