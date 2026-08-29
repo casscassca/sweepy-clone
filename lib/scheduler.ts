@@ -117,7 +117,7 @@ const TASK_LOAD_SELECT = {
 
 async function catalogUseOn(date: string, userId: string) {
   const rows = await prisma.dailyAssignment.findMany({
-    where: { date, userId, completedAt: null, parked: false, task: { oneOff: false } },
+    where: { date, userId, parked: false, task: { oneOff: false } },
     include: { task: { select: TASK_LOAD_SELECT } },
   });
   const asOf = new Date(`${date}T12:00:00`);
@@ -714,7 +714,7 @@ export async function runDailyAssignment(
   const orderCounters = new Map<string, number>(users.map((u) => [u.id, 0]));
   for (const a of existing) {
     const owner = users.find((u) => u.id === a.userId);
-    if (!a.completedAt && !(owner && personWeekendOn(owner) && isWeekendDate(date))) {
+    if (!(owner && personWeekendOn(owner) && isWeekendDate(date))) {
       capacityLeft.set(a.userId, (capacityLeft.get(a.userId) ?? 0) - displayTaskDifficulty(a.task, targetDate));
       slotsLeft.set(a.userId, (slotsLeft.get(a.userId) ?? 0) - 1);
     }

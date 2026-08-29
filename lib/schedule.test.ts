@@ -10,13 +10,13 @@ const WED = "3";
 const lastWed = new Date("2026-08-12T12:00:00-05:00");
 
 describe("capacity load", () => {
-  it("ignores completed and one-off assignments", () => {
+  it("includes completed assignments and ignores one-offs", () => {
     const rows = [
       { completedAt: new Date("2026-08-29T12:00:00-05:00"), task: { oneOff: false }, points: 3 },
       { completedAt: null, task: { oneOff: false }, points: 2 },
       { completedAt: null, task: { oneOff: true }, points: 3 },
     ];
-    assert.deepEqual(capacityLoad(rows, (row) => row.points), { pts: 2, tasks: 1 });
+    assert.deepEqual(capacityLoad(rows, (row) => row.points), { pts: 5, tasks: 2 });
   });
 });
 

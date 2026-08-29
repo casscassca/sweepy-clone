@@ -74,7 +74,7 @@ export function capacityLoad<T extends { completedAt: Date | null; task: { oneOf
   rows: T[],
   pointsFor: (row: T) => number,
 ) {
-  const catalog = rows.filter((row) => row.completedAt === null && !row.task.oneOff);
+  const catalog = rows.filter((row) => !row.task.oneOff);
   return {
     pts: catalog.reduce((sum, row) => sum + pointsFor(row), 0),
     tasks: catalog.length,
