@@ -9,8 +9,11 @@ import {
   overflowNextDate,
   personCapOnDate,
   personWeekendOn,
+  personWeekendPot,
   weekendPair,
+  type PersonCaps,
 } from "./capacity";
+import { canSpillForCapacity, rankForSpill } from "./capacity-policy";
 import { personAway, returnDay } from "./vacation";
 import { applyDirtPause, loadVacationContext } from "./vacation-db";
 import { isAllowedOnDate, nextAllowedOnOrAfter } from "./allowed-days";
@@ -92,14 +95,6 @@ export async function rollForwardPastAssignments(today = todayStr()) {
   return past.length;
 }
 
-function isManualStay(a: { pinned: boolean; held: boolean; task: { oneOff: boolean } }) {
-  return a.pinned || a.held || a.task.oneOff;
-}
-
-function staysOnItsDay(a: { pinned: boolean; held: boolean; task: { oneOff: boolean; dueOnly?: boolean } }) {
-  return isManualStay(a) || !!a.task.dueOnly;
-}
-
 const TASK_LOAD_SELECT = {
   difficulty: true,
   lastDoneAt: true,
@@ -130,26 +125,20 @@ async function catalogUseOn(date: string, userId: string) {
   };
 }
 
-async function weekendRemaining(
-  date: string,
-  userId: string,
-  pot: { weekendCapacity: number; weekendTaskLimit: number },
-) {
+async function weekendRemaining(date: string, userId: string, person: PersonCaps) {
   const pair = weekendPair(date);
   if (!pair) return { pts: 0, tasks: 0 };
+  const pot = personWeekendPot(person);
   const [sat, sun] = await Promise.all([catalogUseOn(pair.sat, userId), catalogUseOn(pair.sun, userId)]);
   return {
-    pts: pot.weekendCapacity - sat.pts - sun.pts,
-    tasks: pot.weekendTaskLimit - sat.tasks - sun.tasks,
+    pts: pot.pts - sat.pts - sun.pts,
+    tasks: pot.tasks - sat.tasks - sun.tasks,
   };
 }
 
 /**
- * Auto-picks that overflow a person's daily points or task count slide forward.
- * Regular chores go first (cleanest first). Important autos only slide if
- * nothing else can. Pins, one-offs, due-only chores, and anything placed
- * by hand stay put and do not push other chores off the day — a day can
- * go over capacity on purpose.
+ * Pins count toward the cap. Only dragged chores, one-offs, and exclusive
+ * important chores may sit over it; everything else overflows.
  */
 export async function enforceCapacity(fromDate = todayStr(), horizon = 21) {
   const users = await prisma.user.findMany({
@@ -174,7 +163,14 @@ export async function enforceCapacity(fromDate = todayStr(), horizon = 21) {
     const date = format(addDays(start, i), "yyyy-MM-dd");
     const open = await prisma.dailyAssignment.findMany({
       where: { date, completedAt: null, parked: false },
-      include: { task: { select: TASK_LOAD_SELECT } },
+      include: {
+        task: {
+          select: {
+            ...TASK_LOAD_SELECT,
+            assignableUsers: { select: { userId: true } },
+          },
+        },
+      },
     });
 
     const byUser = new Map<string, typeof open>();
@@ -187,28 +183,38 @@ export async function enforceCapacity(fromDate = todayStr(), horizon = 21) {
     for (const [userId, items] of byUser) {
       const person = users.find((u) => u.id === userId);
       if (person && personAway(person, vac.house, date)) continue;
-      const autos = items.filter((a) => !staysOnItsDay(a));
       const asOf = vac.dirtAsOf;
-      let points = autos.reduce((s, a) => s + displayTaskDifficulty(a.task, asOf), 0);
-      let count = autos.length;
-      let limit = 6;
-      let maxTasks = 6;
+      let usedPts: number;
+      let usedTasks: number;
+      let limitPts: number;
+      let limitTasks: number;
       if (person && personWeekendOn(person) && isWeekendDate(date)) {
+        const pot = personWeekendPot(person);
         const rem = await weekendRemaining(date, userId, person);
-        limit = rem.pts + points;
-        maxTasks = rem.tasks + count;
+        usedPts = pot.pts - rem.pts;
+        usedTasks = pot.tasks - rem.tasks;
+        limitPts = pot.pts;
+        limitTasks = pot.tasks;
       } else {
         const dayCap = person ? personCapOnDate(person, date) : { pts: 6, tasks: 6 };
-        limit = dayCap.pts;
-        maxTasks = dayCap.tasks;
+        const catalog = items.filter((a) => !a.task.oneOff);
+        usedPts = catalog.reduce((s, a) => s + displayTaskDifficulty(a.task, asOf), 0);
+        usedTasks = catalog.length;
+        limitPts = dayCap.pts;
+        limitTasks = dayCap.tasks;
       }
-      const ranked = [...autos].sort((a, b) => {
-        if (a.task.important !== b.task.important) return a.task.important ? 1 : -1;
-        return dirtinessRatio(a.task.lastDoneAt, a.task.frequencyDays, vac.dirtAsOf) -
-          dirtinessRatio(b.task.lastDoneAt, b.task.frequencyDays, vac.dirtAsOf);
-      });
+      const ranked = rankForSpill(
+        items
+          .filter((a) => !a.task.oneOff)
+          .map((a) => ({
+            ...a,
+            exclusive: a.task.assignableUsers.length === 1,
+            dirt: dirtinessRatio(a.task.lastDoneAt, a.task.frequencyDays, asOf),
+          }))
+          .filter(canSpillForCapacity),
+      );
       let idx = 0;
-      while ((points > limit || count > maxTasks) && idx < ranked.length) {
+      while ((usedPts > limitPts || usedTasks > limitTasks) && idx < ranked.length) {
         const spill = ranked[idx++];
         const dest = nextAllowedOnOrAfter(
           spill.task.allowedDays,
@@ -216,8 +222,8 @@ export async function enforceCapacity(fromDate = todayStr(), horizon = 21) {
         );
         if (!dest || dest === date) continue;
         await relocateOpen(spill.id, spill.taskId, dest);
-        points -= displayTaskDifficulty(spill.task, asOf);
-        count -= 1;
+        usedPts -= displayTaskDifficulty(spill.task, asOf);
+        usedTasks -= 1;
       }
     }
   }
@@ -249,6 +255,7 @@ export async function reshuffleFrom(
   for (const date of days) {
     assigned += (await runDailyAssignment(date, fromDate, { prepare: false })).assigned;
   }
+  await enforceCapacity(fromDate, horizon);
   scheduleHaMqttSync();
   return { assigned };
 }
@@ -353,6 +360,25 @@ async function snapToAllowedDays(fromDate = todayStr()) {
   }
 }
 
+function reserveKey(date: string, userId: string, person: PersonCaps) {
+  return personWeekendOn(person) && isWeekendDate(date) ? `w:${userId}` : `${date}:${userId}`;
+}
+
+async function remainingOnDate(
+  date: string,
+  userId: string,
+  person: PersonCaps,
+  reserved: { pts: number; tasks: number },
+) {
+  if (personWeekendOn(person) && isWeekendDate(date)) {
+    const rem = await weekendRemaining(date, userId, person);
+    return { pts: rem.pts - reserved.pts, tasks: rem.tasks - reserved.tasks };
+  }
+  const cap = personCapOnDate(person, date);
+  const used = await catalogUseOn(date, userId);
+  return { pts: cap.pts - used.pts - reserved.pts, tasks: cap.tasks - used.tasks - reserved.tasks };
+}
+
 /** After a reshuffle wipe, seat due-only chores on their due day before filler runs. */
 async function placeDueOnlyOnDueDays(fromDate: string, horizon: number) {
   const until = format(addDays(parseISO(`${fromDate}T12:00:00`), horizon - 1), "yyyy-MM-dd");
@@ -363,7 +389,19 @@ async function placeDueOnlyOnDueDays(fromDate: string, horizon: number) {
     }),
     prisma.user.findMany({
       orderBy: { createdAt: "asc" },
-      select: { id: true, vacationOn: true, vacationStart: true, vacationEnd: true },
+      select: {
+        id: true,
+        dailyCapacity: true,
+        dailyTaskLimit: true,
+        weekdayCapacities: true,
+        weekdayTaskLimits: true,
+        weekendShare: true,
+        weekendCapacity: true,
+        weekendTaskLimit: true,
+        vacationOn: true,
+        vacationStart: true,
+        vacationEnd: true,
+      },
     }),
     prisma.dailyAssignment.findMany({
       where: { completedAt: null },
@@ -373,43 +411,77 @@ async function placeDueOnlyOnDueDays(fromDate: string, horizon: number) {
   ]);
 
   const taken = new Set(open.map((a) => a.taskId));
-  const load = new Map<string, number>();
   const lastOrder = new Map<string, number>();
   for (const a of open) {
     const userKey = `${a.date}:${a.userId}`;
-    load.set(userKey, (load.get(userKey) ?? 0) + 1);
     lastOrder.set(userKey, Math.max(lastOrder.get(userKey) ?? -1, a.order));
   }
 
+  const reserved = new Map<string, { pts: number; tasks: number }>();
   const toCreate: Array<{ date: string; userId: string; taskId: string; order: number }> = [];
   for (const task of tasks) {
     if (taken.has(task.id)) continue;
-    const date = dueOnAllowedDay(task.lastDoneAt, task.frequencyDays, task.allowedDays, fromDate, until);
+    let date = dueOnAllowedDay(task.lastDoneAt, task.frequencyDays, task.allowedDays, fromDate, until);
     if (!date) continue;
 
-    const allowed = (task.assignableUsers.length > 0
-      ? task.assignableUsers.map((au) => au.userId)
-      : users.map((u) => u.id)
-    ).filter((uid) => {
-      const person = users.find((u) => u.id === uid);
-      return person && !personAway(person, vac.house, date);
-    });
+    const exclusive = task.assignableUsers.length === 1;
+    const mustOver = task.important && exclusive;
+    const difficulty = displayTaskDifficulty(task, vac.dirtAsOf);
+
+    const allowedOn = (day: string) =>
+      (task.assignableUsers.length > 0
+        ? task.assignableUsers.map((au) => au.userId)
+        : users.map((u) => u.id)
+      ).filter((uid) => {
+        const person = users.find((u) => u.id === uid);
+        return person && !personAway(person, vac.house, day);
+      });
+
+    let allowed = allowedOn(date);
     if (allowed.length === 0) continue;
 
-    let bestUser = allowed[0];
-    let bestLoad = Number.POSITIVE_INFINITY;
-    for (const uid of allowed) {
-      const n = load.get(`${date}:${uid}`) ?? 0;
-      if (n < bestLoad) {
-        bestLoad = n;
-        bestUser = uid;
+    const pick = async (day: string, ids: string[]) => {
+      let bestUser: string | null = null;
+      let bestPts = Number.NEGATIVE_INFINITY;
+      for (const uid of ids) {
+        const person = users.find((u) => u.id === uid);
+        if (!person) continue;
+        const rem = await remainingOnDate(day, uid, person, reserved.get(reserveKey(day, uid, person)) ?? { pts: 0, tasks: 0 });
+        if (!mustOver && (rem.tasks < 1 || rem.pts < difficulty)) continue;
+        if (rem.pts > bestPts) {
+          bestPts = rem.pts;
+          bestUser = uid;
+        }
+      }
+      return bestUser;
+    };
+
+    let bestUser = await pick(date, allowed);
+    if (!bestUser && !mustOver) {
+      const dest = nextAllowedOnOrAfter(
+        task.allowedDays,
+        overflowNextDate(date, allowed.some((uid) => {
+          const person = users.find((u) => u.id === uid);
+          return person ? personWeekendOn(person) : false;
+        })),
+      );
+      if (dest && dest !== date) {
+        date = dest;
+        allowed = allowedOn(date);
+        bestUser = await pick(date, allowed);
       }
     }
+    if (!bestUser) continue;
 
+    const person = users.find((u) => u.id === bestUser);
     const userKey = `${date}:${bestUser}`;
     const order = (lastOrder.get(userKey) ?? -1) + 1;
     lastOrder.set(userKey, order);
-    load.set(userKey, (load.get(userKey) ?? 0) + 1);
+    if (person) {
+      const key = reserveKey(date, bestUser, person);
+      const prev = reserved.get(key) ?? { pts: 0, tasks: 0 };
+      reserved.set(key, { pts: prev.pts + difficulty, tasks: prev.tasks + 1 });
+    }
     taken.add(task.id);
     toCreate.push({ date, userId: bestUser, taskId: task.id, order });
   }
@@ -571,7 +643,10 @@ export async function runDailyAssignment(
       return b.dirt - a.dirt;
     });
 
-  if (eligible.length === 0) return { assigned: 0 };
+  if (eligible.length === 0) {
+    await enforceCapacity(date, 1);
+    return { assigned: 0 };
+  }
 
   const capacityLeft = new Map<string, number>();
   const slotsLeft = new Map<string, number>();
@@ -638,13 +713,13 @@ export async function runDailyAssignment(
     }
   };
 
-  // Due-only chores get their actual due day, even if that day is already full.
-  place(eligible.filter((e) => e.task.dueOnly), true);
-  place(eligible.filter((e) => !e.task.dueOnly), false);
+  place(eligible.filter((e) => e.important && e.exclusive), true);
+  place(eligible.filter((e) => !(e.important && e.exclusive)), false);
 
   if (toCreate.length > 0) {
     await prisma.dailyAssignment.createMany({ data: toCreate });
   }
+  await enforceCapacity(date, 1);
 
   return { assigned: toCreate.length };
 }
