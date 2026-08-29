@@ -17,6 +17,7 @@ function isPublic(pathname: string): boolean {
   if (pathname === "/icon" || pathname.startsWith("/icon.")) return true;
   if (pathname === "/apple-icon" || pathname.startsWith("/apple-icon.")) return true;
   if (pathname === "/icon-192.png" || pathname === "/icon-512.png" || pathname === "/icon-monochrome.png") return true;
+  if (pathname === "/icon-cluster-192.png" || pathname === "/icon-cluster-512.png") return true;
   if (pathname === "/mascot.png" || pathname === "/favicon.png") return true;
   return false;
 }
@@ -51,6 +52,6 @@ export async function proxy(req: NextRequest) {
 export const config = {
   // Skip Next static assets and the PWA icons / manifest (see isPublic).
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|favicon.png|manifest.webmanifest|icon-192.png|icon-512.png|icon-monochrome.png|icon.png|apple-icon.png|mascot.png).*)",
+    "/((?!_next/static|_next/image|favicon.ico|favicon.png|manifest.webmanifest|icon-192.png|icon-512.png|icon-monochrome.png|icon-cluster-192.png|icon-cluster-512.png|icon.png|apple-icon.png|mascot.png).*)",
   ],
 };
