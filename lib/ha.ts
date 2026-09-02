@@ -91,8 +91,13 @@ export function resolveNotifyTarget(
   };
 }
 
-export async function postNotify(ha: HaConn, service: string, payload: object) {
-  const url = `${ha.url}/api/services/notify/${encodeURIComponent(service)}`;
+export async function postHaService(
+  ha: HaConn,
+  domain: string,
+  service: string,
+  payload: object,
+) {
+  const url = `${ha.url}/api/services/${encodeURIComponent(domain)}/${encodeURIComponent(service)}`;
   const res = await fetch(url, {
     method: "POST",
     headers: {
@@ -102,4 +107,8 @@ export async function postNotify(ha: HaConn, service: string, payload: object) {
     body: JSON.stringify(payload),
   });
   return { ok: res.ok, status: res.status, body: await res.text(), url };
+}
+
+export async function postNotify(ha: HaConn, service: string, payload: object) {
+  return postHaService(ha, "notify", service, payload);
 }

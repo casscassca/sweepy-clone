@@ -1,6 +1,13 @@
 import { format } from "date-fns";
 import { isAddon2Due, isAddonDue } from "./addon";
 import { publishHaMqttTaskEvent, scheduleHaMqttSync } from "./ha-mqtt";
+import {
+  isFilterAddonTask,
+  isFilterNamedTask,
+  previousFilterLastDone,
+  syncRfidDesiccantOnFilterComplete,
+  syncRfidDesiccantOnFilterUndo,
+} from "./petlibro";
 import { prisma } from "./prisma";
 import { addTaskToDate, dismissAssignmentNotify, holdAssignmentOnDate } from "./scheduler";
 
@@ -61,6 +68,8 @@ export async function completeAssignment(opts: {
     completedById,
   });
 
+  if (task) void syncRfidDesiccantOnFilterComplete(task, opts.completedAt);
+
   return { ok: true as const, assignment };
 }
 
@@ -96,30 +105,34 @@ export async function uncompleteFromLog(logId: string) {
   const log = await prisma.completionLog.findUnique({ where: { id: logId } });
   if (!log) return { ok: true as const };
 
-  const latest = await prisma.completionLog.findFirst({
+  const logs = await prisma.completionLog.findMany({
     where: { taskId: log.taskId },
     orderBy: [{ completedAt: "desc" }, { id: "desc" }],
   });
-  const isLatest = latest?.id === log.id;
+  const isLatest = logs[0]?.id === log.id;
+  const task = await prisma.task.findUnique({ where: { id: log.taskId } });
+  const mopped = task?.addonLastDoneAt
+    && Math.abs(task.addonLastDoneAt.getTime() - log.completedAt.getTime()) < 5000;
+  const stacked = task?.addon2LastDoneAt
+    && Math.abs(task.addon2LastDoneAt.getTime() - log.completedAt.getTime()) < 5000;
+  const older = logs.filter((row) => row.id !== log.id);
+  const previous = older[0] ?? null;
+  const previousFilter = task && isFilterAddonTask(task)
+    ? previousFilterLastDone(
+      [...older].reverse().map((row) => row.completedAt),
+      task.addon2FrequencyDays,
+    )
+    : previous?.completedAt ?? null;
 
   await prisma.completionLog.delete({ where: { id: log.id } });
 
   if (isLatest) {
-    const previous = await prisma.completionLog.findFirst({
-      where: { taskId: log.taskId },
-      orderBy: [{ completedAt: "desc" }, { id: "desc" }],
-    });
-    const task = await prisma.task.findUnique({ where: { id: log.taskId } });
-    const mopped = task?.addonLastDoneAt
-      && Math.abs(task.addonLastDoneAt.getTime() - log.completedAt.getTime()) < 5000;
-    const stacked = task?.addon2LastDoneAt
-      && Math.abs(task.addon2LastDoneAt.getTime() - log.completedAt.getTime()) < 5000;
     await prisma.task.update({
       where: { id: log.taskId },
       data: {
         lastDoneAt: previous?.completedAt ?? null,
         ...(mopped && { addonLastDoneAt: null }),
-        ...(stacked && { addon2LastDoneAt: null }),
+        ...(stacked && { addon2LastDoneAt: previousFilter }),
       },
     });
   }
@@ -141,6 +154,13 @@ export async function uncompleteFromLog(logId: string) {
       where: { id: assignment.id },
       data: { completedAt: null, completedById: null },
     });
+  }
+
+  if (isLatest && task && (isFilterNamedTask(task) || stacked)) {
+    void syncRfidDesiccantOnFilterUndo(
+      task,
+      isFilterNamedTask(task) ? previous?.completedAt ?? null : previousFilter,
+    );
   }
 
   scheduleHaMqttSync();
